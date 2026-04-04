@@ -297,6 +297,187 @@ def tier1_overhead(datasets: list[dict], json_only: bool = False) -> dict:
     return results
 
 
+# ── Tier 1b: Full Algorithm Grid ──────────────────────────────────────────
+
+# All classifiers in ml — (ml_algo, display_name, rust, sklearn_module, sklearn_class, kwargs, needs_scale)
+ALGO_GRID = [
+    ("random_forest",    "Random Forest",    True,  "sklearn.ensemble",      "RandomForestClassifier",         {"n_estimators": 100, "n_jobs": 1, "random_state": 42},  False),
+    ("extra_trees",      "Extra Trees",      True,  "sklearn.ensemble",      "ExtraTreesClassifier",           {"n_estimators": 100, "n_jobs": 1, "random_state": 42},  False),
+    ("decision_tree",    "Decision Tree",    True,  "sklearn.tree",          "DecisionTreeClassifier",         {"random_state": 42},                                    False),
+    ("gradient_boosting","Gradient Boosting",True,  "sklearn.ensemble",      "HistGradientBoostingClassifier", {"random_state": 42},                                    False),
+    ("logistic",         "Logistic",         True,  "sklearn.linear_model",  "LogisticRegression",             {"max_iter": 1000, "random_state": 42, "n_jobs": 1},     True),
+    ("naive_bayes",      "Naive Bayes",      True,  "sklearn.naive_bayes",   "GaussianNB",                     {},                                                      False),
+    ("adaboost",         "AdaBoost",         True,  "sklearn.ensemble",      "AdaBoostClassifier",             {"n_estimators": 100, "random_state": 42, "algorithm": "SAMME"}, False),
+    ("svm",              "SVM",              True,  "sklearn.svm",           "LinearSVC",                      {"random_state": 42, "max_iter": 2000},                  True),
+    ("knn",              "KNN",              True,  "sklearn.neighbors",     "KNeighborsClassifier",           {"n_neighbors": 5},                                      True),
+]
+
+
+def _sklearn_generic_pipeline(train_df, valid_df, target, make_estimator, needs_scale=False):
+    """Generic sklearn pipeline: OrdinalEncode → Impute → (Scale) → fit → metrics."""
+
+    from sklearn.impute import SimpleImputer
+    from sklearn.metrics import accuracy_score, roc_auc_score
+    from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, StandardScaler
+
+    le = LabelEncoder()
+    y_train = le.fit_transform(train_df[target])
+    y_valid = le.transform(valid_df[target])
+
+    X_train = train_df.drop(columns=[target]).copy()
+    X_valid = valid_df.drop(columns=[target]).copy()
+
+    cats = X_train.select_dtypes(include=["object", "category"]).columns.tolist()
+    if cats:
+        enc = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
+        X_train[cats] = enc.fit_transform(X_train[cats])
+        X_valid[cats] = enc.transform(X_valid[cats])
+
+    X_train = X_train.values.astype(float)
+    X_valid = X_valid.values.astype(float)
+
+    imp = SimpleImputer(strategy="median")
+    X_train = imp.fit_transform(X_train)
+    X_valid = imp.transform(X_valid)
+
+    if needs_scale:
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_valid = scaler.transform(X_valid)
+
+    clf = make_estimator()
+    clf.fit(X_train, y_train)
+
+    y_pred = clf.predict(X_valid)
+    acc = float(accuracy_score(y_valid, y_pred))
+
+    # AUC: prefer predict_proba, fall back to decision_function
+    auc = None
+    try:
+        proba = clf.predict_proba(X_valid)
+        if hasattr(clf, "classes_"):
+            pos_candidates = np.where(clf.classes_ == 1)[0]
+            pos_idx = int(pos_candidates[0]) if len(pos_candidates) > 0 else 1
+        else:
+            pos_idx = 1
+        auc = float(roc_auc_score(y_valid, proba[:, pos_idx]))
+    except (AttributeError, Exception):
+        try:
+            scores = clf.decision_function(X_valid)
+            if scores.ndim > 1:
+                scores = scores[:, 1]
+            auc = float(roc_auc_score(y_valid, scores))
+        except Exception:
+            auc = None
+
+    return {
+        "accuracy": round(acc, 4),
+        "roc_auc": round(auc, 4) if auc is not None else None,
+    }
+
+
+def tier1_algo_grid(datasets: list[dict], json_only: bool = False) -> dict:
+    """Tier 1b: All classifiers — ml vs sklearn, same data, same split."""
+    import importlib
+
+    results = {}
+
+    for ds in datasets:
+        name = ds["name"]
+        data = ds["data"]
+        target = ds["target"]
+        n_rows = len(data)
+
+        if not json_only:
+            print(f"\n  Algo grid: {name} ({n_rows:,} rows)")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            s = ml.split(data=data, target=target, seed=42)
+
+        ds_results = []
+
+        for (ml_algo, display, rust, sk_mod, sk_cls, sk_kwargs, needs_scale) in ALGO_GRID:
+            # Skip KNN on very large datasets (O(n) prediction, unusably slow)
+            if ml_algo == "knn" and n_rows > 20_000:
+                ds_results.append({
+                    "algo": ml_algo, "display": display, "rust": rust,
+                    "ml": None, "sklearn": None, "note": f"skipped: n={n_rows:,}>20k",
+                })
+                continue
+
+            row: dict = {"algo": ml_algo, "display": display, "rust": rust}
+
+            # ── ml ──
+            try:
+                def _ml_fit(_s=s, _t=target, _a=ml_algo):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        ml.fit(data=_s.train, target=_t, algorithm=_a,
+                               seed=42, early_stopping=False)
+
+                timing = run_timed(_ml_fit, warmup=2, runs=5)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    model = ml.fit(data=s.train, target=target, algorithm=ml_algo,
+                                   seed=42, early_stopping=False)
+                metrics = ml.evaluate(model, s.valid)
+
+                row["ml"] = {
+                    "median_seconds": timing["median_seconds"],
+                    "accuracy": round(metrics.get("accuracy", 0) or 0, 4),
+                    "roc_auc": round(metrics.get("roc_auc") or 0, 4) if metrics.get("roc_auc") else None,
+                }
+                if not json_only:
+                    t = timing["median_seconds"]
+                    auc = row["ml"]["roc_auc"] or "—"
+                    print(f"  [{ml_algo:20s}] ml {t*1000:6.0f}ms  AUC={auc}", end="")
+            except Exception as e:
+                row["ml"] = {"error": str(e)[:120]}
+                if not json_only:
+                    print(f"  [{ml_algo:20s}] ml ERROR: {e}", end="")
+
+            # ── sklearn ──
+            try:
+                mod = importlib.import_module(sk_mod)
+                cls = getattr(mod, sk_cls)
+                def make_est(_cls=cls, _kw=sk_kwargs):
+                    return _cls(**_kw)
+
+                def _sk_fit(_s=s, _t=target, _me=make_est, _ns=needs_scale):
+                    _sklearn_generic_pipeline(_s.train, _s.valid, _t, _me, _ns)
+
+                sk_timing = run_timed(_sk_fit, warmup=2, runs=5)
+                sk_metrics = _sklearn_generic_pipeline(s.train, s.valid, target, make_est, needs_scale)
+
+                row["sklearn"] = {
+                    "median_seconds": sk_timing["median_seconds"],
+                    "accuracy": sk_metrics["accuracy"],
+                    "roc_auc": sk_metrics["roc_auc"],
+                }
+
+                # Speedup: positive = ml faster
+                ml_t = (row.get("ml") or {}).get("median_seconds")
+                sk_t = sk_timing["median_seconds"]
+                if ml_t and sk_t and sk_t > 0:
+                    row["speedup_x"] = round(sk_t / ml_t, 2)
+
+                if not json_only:
+                    sk_t_ms = sk_timing["median_seconds"] * 1000
+                    sp = row.get("speedup_x", "?")
+                    print(f"  sklearn {sk_t_ms:6.0f}ms  speedup={sp}x")
+            except Exception as e:
+                row["sklearn"] = {"error": str(e)[:120]}
+                if not json_only:
+                    print(f"  sklearn ERROR: {e}")
+
+            ds_results.append(row)
+
+        results[name] = ds_results
+
+    return results
+
+
 # ── Tier 2: Screener vs Screener ─────────────────────────────────────────
 
 
@@ -799,8 +980,11 @@ def run_all(
         df_100k["target"] = y
         datasets.append({"name": "synthetic_100k", "data": df_100k, "target": "target"})
 
-    # Tier 1
+    # Tier 1: RF + Logistic wrapper overhead (existing)
     results["tier1_overhead"] = tier1_overhead(datasets, json_only)
+
+    # Tier 1b: Full algorithm grid — all classifiers vs sklearn
+    results["tier1_algo_grid"] = tier1_algo_grid(datasets, json_only)
 
     # Tier 2 (on first dataset)
     results["tier2_screener"] = tier2_screener(
