@@ -970,6 +970,46 @@ def run_all(
         if not json_only:
             print(f"  [skip] electricity: {e}")
 
+    # eeg_eye_state — 14,980 rows, EEG signal → eyes open/closed
+    try:
+        eeg = ml.dataset("eeg_eye_state")
+        datasets.append({"name": "eeg_15k", "data": eeg, "target": "eyes_open"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] eeg_eye_state: {e}")
+
+    # phishing — 11,055 rows, URL features → phishing/legitimate
+    try:
+        phish = ml.dataset("phishing")
+        datasets.append({"name": "phishing_11k", "data": phish, "target": "phishing"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] phishing: {e}")
+
+    # mammography — 11,183 rows, mammogram → malignant/benign
+    try:
+        mammo = ml.dataset("mammography")
+        datasets.append({"name": "mammography_11k", "data": mammo, "target": "malignant"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] mammography: {e}")
+
+    # mushroom — 8,124 rows, mushroom features → poisonous/edible (all categorical)
+    try:
+        mush = ml.dataset("mushroom")
+        datasets.append({"name": "mushroom_8k", "data": mush, "target": "poisonous"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] mushroom: {e}")
+
+    # phoneme — 5,404 rows, acoustic features → nasal/oral phoneme
+    try:
+        phon = ml.dataset("phoneme")
+        datasets.append({"name": "phoneme_5k", "data": phon, "target": "phoneme"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] phoneme: {e}")
+
     if include_beast:
         from sklearn.datasets import make_classification
         X, y = make_classification(
