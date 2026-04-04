@@ -1,27 +1,20 @@
 #!/usr/bin/env bash
-# cron_push.sh — Compile claims, verify, commit, push to GitHub.
-#
-# Runs every 3 hours via cron. Only pushes if:
-#   1. New data exists (JSONL files changed since last commit)
-#   2. compile_claims.py succeeds
-#   3. verify_from_raw.py passes (all claims match)
-#   4. No egress violations (banned terms)
+# cron_push.sh — Run experiments, commit new data, push to GitHub.
 #
 # Usage:
 #   ./cron_push.sh                    # normal run
 #   ./cron_push.sh --dry-run          # skip push
-#   0 */3 * * * /path/to/cron_push.sh >> /path/to/cron_push.log 2>&1
-#
-# Requires: git push access (deploy key or token)
+#   0 */3 * * * /home/simon/ml-bench/experiments/cron_push.sh >> /home/simon/ml-bench/cron.log 2>&1
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PAPER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-DATA_DIR="$PAPER_DIR/data"
-VENV="${VENV:-$HOME/ml_test/venv}"
-LOG_PREFIX="[$(date -u '+%Y-%m-%d %H:%M:%S UTC')]"
+REPO_DIR="$HOME/ml-bench"
+DATA_DIR="$REPO_DIR/data"
+EXPERIMENTS_DIR="$REPO_DIR/experiments"
+VENV="$HOME/ml_test/venv"
+LOG_PREFIX="[$(date -u "+%Y-%m-%d %H:%M:%S UTC")]"
 DRY_RUN=false
+BATCH_SIZE=50  # cells per cron cycle
 
 if [[ "${1:-}" == "--dry-run" ]]; then
     DRY_RUN=true
@@ -38,13 +31,30 @@ if [[ -f "$VENV/bin/activate" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 1. Check for new data
+# 1. Pull latest (never overwrite remote data)
 # ---------------------------------------------------------------------------
-cd "$PAPER_DIR"
+cd "$REPO_DIR"
+log "Pulling latest..."
+git pull --rebase origin main || die "git pull failed"
 
-# Count changed JSONL files since last commit
-CHANGED=$(git diff --name-only HEAD -- data/*.jsonl 2>/dev/null | wc -l | tr -d ' ')
-UNTRACKED=$(git ls-files --others --exclude-standard -- data/*.jsonl 2>/dev/null | wc -l | tr -d ' ')
+# ---------------------------------------------------------------------------
+# 2. Run experiments (batch of N cells)
+# ---------------------------------------------------------------------------
+log "Running $BATCH_SIZE experiment cells..."
+cd "$EXPERIMENTS_DIR"
+python3 continuous_runner.py \
+    --data-dir "$DATA_DIR" \
+    --experiments-dir "$EXPERIMENTS_DIR" \
+    --limit "$BATCH_SIZE" \
+    --nice 15 \
+    2>&1 || log "Runner exited with error (partial results may exist)"
+
+# ---------------------------------------------------------------------------
+# 3. Check for new data
+# ---------------------------------------------------------------------------
+cd "$REPO_DIR"
+CHANGED=$(git diff --name-only -- data/*.jsonl 2>/dev/null | wc -l | tr -d " ")
+UNTRACKED=$(git ls-files --others --exclude-standard -- data/*.jsonl 2>/dev/null | wc -l | tr -d " ")
 TOTAL_NEW=$((CHANGED + UNTRACKED))
 
 if [[ "$TOTAL_NEW" -eq 0 ]]; then
@@ -55,120 +65,68 @@ fi
 log "Found $TOTAL_NEW changed/new JSONL files"
 
 # ---------------------------------------------------------------------------
-# 2. Compile claims
-# ---------------------------------------------------------------------------
-log "Compiling claims..."
-python3 "$PAPER_DIR/compile_claims.py" || die "compile_claims.py failed"
-log "Claims compiled successfully"
-
-# ---------------------------------------------------------------------------
-# 3. Verify claims from raw data
-# ---------------------------------------------------------------------------
-log "Verifying claims from raw data..."
-VERIFY_OUTPUT=$(python3 "$PAPER_DIR/verify_from_raw.py" 2>&1)
-echo "$VERIFY_OUTPUT"
-
-if echo "$VERIFY_OUTPUT" | grep -q "FAIL"; then
-    die "verify_from_raw.py has FAILing claims — NOT pushing"
-fi
-
-log "All claims verified"
-
-# ---------------------------------------------------------------------------
 # 4. Egress check (banned terms)
 # ---------------------------------------------------------------------------
-BANNED_TERMS=(
-    "beast"
-    "moat"
-    "vault"
-    "auditor council"
-    "mlwork"
-    "agents/modeler"
-    "private/"
-    "smithy"
-)
+BANNED_TERMS=("beast" "moat" "vault" "auditor council" "mlwork" "agents/modeler" "private/" "smithy")
 
-log "Running egress scan on changed files..."
+log "Running egress scan..."
 EGRESS_FAIL=false
 for term in "${BANNED_TERMS[@]}"; do
-    HITS=$(grep -ril "$term" data/*.jsonl 2>/dev/null | wc -l | tr -d ' ')
+    HITS=$(grep -ril "$term" data/*.jsonl 2>/dev/null | wc -l | tr -d " ")
     if [[ "$HITS" -gt 0 ]]; then
-        log "EGRESS VIOLATION: '$term' found in $HITS files"
+        log "EGRESS VIOLATION:  found in $HITS files"
         EGRESS_FAIL=true
     fi
 done
 
 if [[ "$EGRESS_FAIL" == "true" ]]; then
-    die "Egress violations found — NOT pushing"
+    die "Egress violations — NOT pushing"
 fi
 
-log "Egress check passed"
-
 # ---------------------------------------------------------------------------
-# 5. Pull latest from GitHub (never overwrite remote data)
+# 5. Safety: no file should shrink
 # ---------------------------------------------------------------------------
-log "Pulling latest from origin (rebase to preserve remote data)..."
-git pull --rebase origin HEAD || die "git pull --rebase failed — resolve manually"
-log "Up to date with remote"
-
-# ---------------------------------------------------------------------------
-# 6. Commit
-# ---------------------------------------------------------------------------
-log "Staging data files..."
-git add data/*.jsonl
-git add claims.json 2>/dev/null || true
-
-# Build commit message with data summary
-SUMMARY=""
-for f in data/*.jsonl; do
-    if [[ -f "$f" ]]; then
-        COUNT=$(wc -l < "$f" | tr -d ' ')
-        BASENAME=$(basename "$f")
-        SUMMARY="${SUMMARY}  ${BASENAME}: ${COUNT} rows\n"
-    fi
-done
-
-COMMIT_MSG="data: continuous landscape update $(date -u '+%Y-%m-%d %H:%M UTC')
-
-Data counts:
-$(echo -e "$SUMMARY")
-All claims verified. Egress clean."
-
-log "Committing..."
-git commit -m "$COMMIT_MSG" || die "git commit failed"
-
-# ---------------------------------------------------------------------------
-# 7. Safety check: no JSONL file should have FEWER rows than on remote
-# ---------------------------------------------------------------------------
-log "Checking no data was lost..."
 DATA_LOSS=false
 for f in data/*.jsonl; do
-    if [[ ! -f "$f" ]]; then continue; fi
+    [[ -f "$f" ]] || continue
     BASENAME=$(basename "$f")
-    LOCAL_COUNT=$(wc -l < "$f" | tr -d ' ')
-    # Get remote count (0 if file doesn't exist on remote)
-    REMOTE_COUNT=$(git show "origin/HEAD:data/$BASENAME" 2>/dev/null | wc -l | tr -d ' ' || echo 0)
+    LOCAL_COUNT=$(wc -l < "$f" | tr -d " ")
+    REMOTE_COUNT=$(git show "origin/main:data/$BASENAME" 2>/dev/null | wc -l | tr -d " " || echo 0)
     if [[ "$LOCAL_COUNT" -lt "$REMOTE_COUNT" ]]; then
-        log "DATA LOSS DETECTED: $BASENAME has $LOCAL_COUNT rows locally but $REMOTE_COUNT on remote"
+        log "DATA LOSS: $BASENAME local=$LOCAL_COUNT remote=$REMOTE_COUNT"
         DATA_LOSS=true
     fi
 done
 
 if [[ "$DATA_LOSS" == "true" ]]; then
-    git reset HEAD~1  # undo the commit
-    die "Data loss detected — NOT pushing. Investigate manually."
+    die "Data loss detected — NOT pushing"
 fi
 
 # ---------------------------------------------------------------------------
-# 8. Push
+# 6. Commit
+# ---------------------------------------------------------------------------
+SUMMARY=""
+for f in data/*.jsonl; do
+    [[ -f "$f" ]] || continue
+    COUNT=$(wc -l < "$f" | tr -d " ")
+    SUMMARY="${SUMMARY}  $(basename "$f"): ${COUNT}\n"
+done
+
+git add data/*.jsonl
+git add data/continuous_checkpoint.db 2>/dev/null || true
+
+git commit -m "data: +${BATCH_SIZE} cells $(date -u "+%Y-%m-%d %H:%M UTC")
+
+$(echo -e "$SUMMARY")" || die "Nothing to commit"
+
+# ---------------------------------------------------------------------------
+# 7. Push
 # ---------------------------------------------------------------------------
 if [[ "$DRY_RUN" == "true" ]]; then
     log "DRY RUN — skipping push"
-    log "Would push: $(git log --oneline -1)"
 else
-    log "Pushing to origin..."
-    git push origin HEAD || die "git push failed"
-    log "Push successful: $(git log --oneline -1)"
+    git push origin main || die "git push failed"
+    log "Pushed: $(git log --oneline -1)"
 fi
 
 log "Done."
