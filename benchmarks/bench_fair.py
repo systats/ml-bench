@@ -307,7 +307,7 @@ ALGO_GRID = [
     ("gradient_boosting","Gradient Boosting",True,  "sklearn.ensemble",      "HistGradientBoostingClassifier", {"random_state": 42},                                    False),
     ("logistic",         "Logistic",         True,  "sklearn.linear_model",  "LogisticRegression",             {"max_iter": 1000, "random_state": 42, "n_jobs": 1},     True),
     ("naive_bayes",      "Naive Bayes",      True,  "sklearn.naive_bayes",   "GaussianNB",                     {},                                                      False),
-    ("adaboost",         "AdaBoost",         True,  "sklearn.ensemble",      "AdaBoostClassifier",             {"n_estimators": 100, "random_state": 42, "algorithm": "SAMME"}, False),
+    ("adaboost",         "AdaBoost",         True,  "sklearn.ensemble",      "AdaBoostClassifier",             {"n_estimators": 100, "random_state": 42}, False),
     ("svm",              "SVM",              True,  "sklearn.svm",           "LinearSVC",                      {"random_state": 42, "max_iter": 2000},                  True),
     ("knn",              "KNN",              True,  "sklearn.neighbors",     "KNeighborsClassifier",           {"n_neighbors": 5},                                      True),
 ]

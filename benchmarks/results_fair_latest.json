@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-04-04T14:39:57.149722+00:00",
+  "timestamp": "2026-04-04T15:27:10.066769+00:00",
   "versions": {
     "ml": "1.2.0",
     "sklearn": "1.8.0",
@@ -15,66 +15,66 @@
   "tier1_overhead": {
     "churn_7k": {
       "ml_rf": {
-        "min_seconds": 0.05873,
-        "median_seconds": 0.05942,
-        "p95_seconds": 0.05996,
-        "iqr_seconds": 0.00065,
+        "min_seconds": 0.05863,
+        "median_seconds": 0.05898,
+        "p95_seconds": 0.06037,
+        "iqr_seconds": 0.00077,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 3.3,
         "accuracy": 0.7892,
         "roc_auc": 0.8318
       },
       "sklearn_rf": {
-        "min_seconds": 0.5362,
-        "median_seconds": 0.54389,
-        "p95_seconds": 0.54916,
-        "iqr_seconds": 0.00188,
+        "min_seconds": 0.52643,
+        "median_seconds": 0.53607,
+        "p95_seconds": 0.53684,
+        "iqr_seconds": 0.00235,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 3.64,
         "accuracy": 0.7814,
         "roc_auc": 0.8229
       },
-      "overhead_pct_rf": -89.1,
+      "overhead_pct_rf": -89.0,
       "accuracy_delta_rf": 0.0078,
       "ml_logistic": {
-        "min_seconds": 0.06655,
-        "median_seconds": 0.06709,
-        "p95_seconds": 0.06752,
-        "iqr_seconds": 0.00037,
+        "min_seconds": 0.06416,
+        "median_seconds": 0.0646,
+        "p95_seconds": 0.06813,
+        "iqr_seconds": 0.00044,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 9.86,
         "accuracy": 0.7999,
         "roc_auc": 0.8492
       },
       "sklearn_logistic": {
-        "min_seconds": 0.03286,
-        "median_seconds": 0.03365,
-        "p95_seconds": 0.03405,
-        "iqr_seconds": 0.00028,
+        "min_seconds": 0.03143,
+        "median_seconds": 0.03177,
+        "p95_seconds": 0.03185,
+        "iqr_seconds": 0.00019,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 3.64,
         "accuracy": 0.7984,
         "roc_auc": 0.8449
       },
-      "overhead_pct_logistic": 99.4,
+      "overhead_pct_logistic": 103.3,
       "accuracy_delta_logistic": 0.0015
     },
     "fraud_10k": {
       "ml_rf": {
-        "min_seconds": 0.04358,
-        "median_seconds": 0.04446,
-        "p95_seconds": 0.04506,
-        "iqr_seconds": 0.00068,
+        "min_seconds": 0.04379,
+        "median_seconds": 0.04421,
+        "p95_seconds": 0.04606,
+        "iqr_seconds": 0.00065,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 7.04,
         "accuracy": 0.992,
         "roc_auc": 0.9785
       },
       "sklearn_rf": {
-        "min_seconds": 1.67981,
-        "median_seconds": 1.68753,
-        "p95_seconds": 1.93506,
-        "iqr_seconds": 0.2141,
+        "min_seconds": 1.65975,
+        "median_seconds": 1.6742,
+        "p95_seconds": 1.68263,
+        "iqr_seconds": 0.00911,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 7.71,
         "accuracy": 0.992,
@@ -83,210 +83,210 @@
       "overhead_pct_rf": -97.4,
       "accuracy_delta_rf": 0.0,
       "ml_logistic": {
-        "min_seconds": 0.03937,
-        "median_seconds": 0.03969,
-        "p95_seconds": 0.03995,
-        "iqr_seconds": 0.0003,
+        "min_seconds": 0.03732,
+        "median_seconds": 0.03749,
+        "p95_seconds": 0.03787,
+        "iqr_seconds": 7e-05,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 10.89,
         "accuracy": 0.9915,
         "roc_auc": 0.9669
       },
       "sklearn_logistic": {
-        "min_seconds": 0.01819,
-        "median_seconds": 0.01834,
-        "p95_seconds": 0.0185,
-        "iqr_seconds": 0.00011,
+        "min_seconds": 0.01736,
+        "median_seconds": 0.01745,
+        "p95_seconds": 0.01748,
+        "iqr_seconds": 6e-05,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 7.71,
         "accuracy": 0.9915,
         "roc_auc": 0.9674
       },
-      "overhead_pct_logistic": 116.4,
+      "overhead_pct_logistic": 114.8,
       "accuracy_delta_logistic": 0.0
     },
     "spam_4k": {
       "ml_rf": {
-        "min_seconds": 0.04685,
-        "median_seconds": 0.04747,
-        "p95_seconds": 0.04784,
-        "iqr_seconds": 0.00054,
+        "min_seconds": 0.04606,
+        "median_seconds": 0.04772,
+        "p95_seconds": 0.04796,
+        "iqr_seconds": 0.00083,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 7.36,
         "accuracy": 0.9522,
         "roc_auc": 0.9896
       },
       "sklearn_rf": {
-        "min_seconds": 0.50133,
-        "median_seconds": 0.50327,
-        "p95_seconds": 0.50716,
-        "iqr_seconds": 0.00191,
+        "min_seconds": 0.48879,
+        "median_seconds": 0.5011,
+        "p95_seconds": 0.51488,
+        "iqr_seconds": 0.00688,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 6.96,
         "accuracy": 0.962,
         "roc_auc": 0.9898
       },
-      "overhead_pct_rf": -90.6,
+      "overhead_pct_rf": -90.5,
       "accuracy_delta_rf": 0.0098,
       "ml_logistic": {
-        "min_seconds": 0.04499,
-        "median_seconds": 0.04537,
-        "p95_seconds": 0.04559,
-        "iqr_seconds": 0.00029,
+        "min_seconds": 0.04165,
+        "median_seconds": 0.04209,
+        "p95_seconds": 0.04277,
+        "iqr_seconds": 0.00075,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 9.97,
         "accuracy": 0.9283,
         "roc_auc": 0.9725
       },
       "sklearn_logistic": {
-        "min_seconds": 0.01932,
-        "median_seconds": 0.0197,
-        "p95_seconds": 0.0198,
-        "iqr_seconds": 0.00017,
+        "min_seconds": 0.01892,
+        "median_seconds": 0.01907,
+        "p95_seconds": 0.01909,
+        "iqr_seconds": 4e-05,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 6.96,
         "accuracy": 0.9273,
         "roc_auc": 0.9725
       },
-      "overhead_pct_logistic": 130.3,
+      "overhead_pct_logistic": 120.7,
       "accuracy_delta_logistic": 0.001
     },
     "bank_45k": {
       "ml_rf": {
-        "min_seconds": 0.30696,
-        "median_seconds": 0.30956,
-        "p95_seconds": 0.31329,
-        "iqr_seconds": 0.00259,
+        "min_seconds": 0.27647,
+        "median_seconds": 0.28192,
+        "p95_seconds": 0.309,
+        "iqr_seconds": 0.01287,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 17.65,
         "accuracy": 0.9051,
         "roc_auc": 0.9198
       },
       "sklearn_rf": {
-        "min_seconds": 1.98298,
-        "median_seconds": 1.9949,
-        "p95_seconds": 2.03246,
-        "iqr_seconds": 0.01297,
+        "min_seconds": 1.88258,
+        "median_seconds": 1.88859,
+        "p95_seconds": 1.92005,
+        "iqr_seconds": 0.00961,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 19.27,
         "accuracy": 0.9051,
         "roc_auc": 0.9243
       },
-      "overhead_pct_rf": -84.5,
+      "overhead_pct_rf": -85.1,
       "accuracy_delta_rf": 0.0,
       "ml_logistic": {
-        "min_seconds": 0.26463,
-        "median_seconds": 0.26533,
-        "p95_seconds": 0.26847,
-        "iqr_seconds": 0.00194,
+        "min_seconds": 0.18226,
+        "median_seconds": 0.18629,
+        "p95_seconds": 0.22785,
+        "iqr_seconds": 0.01678,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 65.69,
         "accuracy": 0.9004,
         "roc_auc": 0.9067
       },
       "sklearn_logistic": {
-        "min_seconds": 0.10302,
-        "median_seconds": 0.10317,
-        "p95_seconds": 0.10421,
-        "iqr_seconds": 0.00073,
+        "min_seconds": 0.0736,
+        "median_seconds": 0.07515,
+        "p95_seconds": 0.07604,
+        "iqr_seconds": 0.00107,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 19.27,
         "accuracy": 0.8912,
         "roc_auc": 0.8708
       },
-      "overhead_pct_logistic": 157.2,
+      "overhead_pct_logistic": 147.9,
       "accuracy_delta_logistic": 0.0092
     },
     "adult_48k": {
       "ml_rf": {
-        "min_seconds": 0.2924,
-        "median_seconds": 0.30336,
-        "p95_seconds": 0.30785,
-        "iqr_seconds": 0.00205,
+        "min_seconds": 0.2625,
+        "median_seconds": 0.2665,
+        "p95_seconds": 0.27824,
+        "iqr_seconds": 0.00361,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 15.71,
         "accuracy": 0.8576,
         "roc_auc": 0.9101
       },
       "sklearn_rf": {
-        "min_seconds": 1.46625,
-        "median_seconds": 1.47881,
-        "p95_seconds": 1.62112,
-        "iqr_seconds": 0.04627,
+        "min_seconds": 1.42265,
+        "median_seconds": 1.42909,
+        "p95_seconds": 1.44385,
+        "iqr_seconds": 0.01469,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 16.98,
         "accuracy": 0.8447,
         "roc_auc": 0.8901
       },
-      "overhead_pct_rf": -79.5,
+      "overhead_pct_rf": -81.4,
       "accuracy_delta_rf": 0.0129,
       "ml_logistic": {
-        "min_seconds": 0.29117,
-        "median_seconds": 0.29291,
-        "p95_seconds": 0.29468,
-        "iqr_seconds": 0.00144,
+        "min_seconds": 0.23684,
+        "median_seconds": 0.23916,
+        "p95_seconds": 0.28104,
+        "iqr_seconds": 0.01675,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 131.74,
         "accuracy": 0.8479,
         "roc_auc": 0.9032
       },
       "sklearn_logistic": {
-        "min_seconds": 0.08086,
-        "median_seconds": 0.08137,
-        "p95_seconds": 0.08197,
-        "iqr_seconds": 0.00035,
+        "min_seconds": 0.06261,
+        "median_seconds": 0.06581,
+        "p95_seconds": 0.06709,
+        "iqr_seconds": 0.00124,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 16.98,
         "accuracy": 0.818,
         "roc_auc": 0.8483
       },
-      "overhead_pct_logistic": 260.0,
+      "overhead_pct_logistic": 263.4,
       "accuracy_delta_logistic": 0.0299
     },
     "electricity_45k": {
       "ml_rf": {
-        "min_seconds": 0.2135,
-        "median_seconds": 0.2152,
-        "p95_seconds": 0.21655,
-        "iqr_seconds": 0.00149,
+        "min_seconds": 0.21377,
+        "median_seconds": 0.21531,
+        "p95_seconds": 0.221,
+        "iqr_seconds": 0.00286,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 10.02,
         "accuracy": 0.9015,
         "roc_auc": 0.9636
       },
       "sklearn_rf": {
-        "min_seconds": 2.19775,
-        "median_seconds": 2.262,
-        "p95_seconds": 2.43245,
-        "iqr_seconds": 0.04229,
+        "min_seconds": 2.17055,
+        "median_seconds": 2.19174,
+        "p95_seconds": 2.20137,
+        "iqr_seconds": 0.0053,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 9.83,
         "accuracy": 0.8979,
         "roc_auc": 0.9643
       },
-      "overhead_pct_rf": -90.5,
+      "overhead_pct_rf": -90.2,
       "accuracy_delta_rf": 0.0036,
       "ml_logistic": {
-        "min_seconds": 0.04992,
-        "median_seconds": 0.05045,
-        "p95_seconds": 0.05058,
-        "iqr_seconds": 0.00018,
+        "min_seconds": 0.04041,
+        "median_seconds": 0.0409,
+        "p95_seconds": 0.04118,
+        "iqr_seconds": 0.00024,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 20.78,
         "accuracy": 0.7668,
         "roc_auc": 0.8282
       },
       "sklearn_logistic": {
-        "min_seconds": 0.03829,
-        "median_seconds": 0.03857,
-        "p95_seconds": 0.03949,
-        "iqr_seconds": 0.00045,
+        "min_seconds": 0.03515,
+        "median_seconds": 0.03542,
+        "p95_seconds": 0.03553,
+        "iqr_seconds": 0.0001,
         "rss_delta_mb": -1.0,
         "tracemalloc_peak_mb": 9.83,
         "accuracy": 0.7535,
         "roc_auc": 0.8211
       },
-      "overhead_pct_logistic": 30.8,
+      "overhead_pct_logistic": 15.5,
       "accuracy_delta_logistic": 0.0133
     }
   },
@@ -297,44 +297,44 @@
         "display": "Random Forest",
         "rust": true,
         "ml": {
-          "median_seconds": 0.06027,
+          "median_seconds": 0.06029,
           "accuracy": 0.7892,
           "roc_auc": 0.8318
         },
         "sklearn": {
-          "median_seconds": 0.55834,
+          "median_seconds": 0.52406,
           "accuracy": 0.7814,
           "roc_auc": 0.8229
         },
-        "speedup_x": 9.26
+        "speedup_x": 8.69
       },
       {
         "algo": "extra_trees",
         "display": "Extra Trees",
         "rust": true,
         "ml": {
-          "median_seconds": 0.06068,
+          "median_seconds": 0.05924,
           "accuracy": 0.7857,
           "roc_auc": 0.8192
         },
         "sklearn": {
-          "median_seconds": 0.42928,
+          "median_seconds": 0.41009,
           "accuracy": 0.785,
           "roc_auc": 0.7993
         },
-        "speedup_x": 7.07
+        "speedup_x": 6.92
       },
       {
         "algo": "decision_tree",
         "display": "Decision Tree",
         "rust": true,
         "ml": {
-          "median_seconds": 0.05534,
+          "median_seconds": 0.05291,
           "accuracy": 0.7296,
           "roc_auc": 0.4951
         },
         "sklearn": {
-          "median_seconds": 0.0351,
+          "median_seconds": 0.03331,
           "accuracy": 0.7353,
           "roc_auc": 0.6734
         },
@@ -348,7 +348,7 @@
           "error": "GradientBoosting.__new__() got an unexpected keyword argument 'reg_lambda'"
         },
         "sklearn": {
-          "median_seconds": 0.42962,
+          "median_seconds": 0.40941,
           "accuracy": 0.7913,
           "roc_auc": 0.8373
         }
@@ -358,12 +358,12 @@
         "display": "Logistic",
         "rust": true,
         "ml": {
-          "median_seconds": 0.06903,
+          "median_seconds": 0.06449,
           "accuracy": 0.7999,
           "roc_auc": 0.8492
         },
         "sklearn": {
-          "median_seconds": 0.03191,
+          "median_seconds": 0.02997,
           "accuracy": 0.7984,
           "roc_auc": 0.8449
         },
@@ -374,12 +374,12 @@
         "display": "Naive Bayes",
         "rust": true,
         "ml": {
-          "median_seconds": 0.04737,
+          "median_seconds": 0.04453,
           "accuracy": 0.7417,
           "roc_auc": 0.8119
         },
         "sklearn": {
-          "median_seconds": 0.02576,
+          "median_seconds": 0.02395,
           "accuracy": 0.7417,
           "roc_auc": 0.8119
         },
@@ -390,13 +390,16 @@
         "display": "AdaBoost",
         "rust": true,
         "ml": {
-          "median_seconds": 0.10897,
+          "median_seconds": 0.10962,
           "accuracy": 0.8034,
           "roc_auc": 0.8377
         },
         "sklearn": {
-          "error": "AdaBoostClassifier.__init__() got an unexpected keyword argument 'algorithm'"
-        }
+          "median_seconds": 0.38859,
+          "accuracy": 0.807,
+          "roc_auc": 0.852
+        },
+        "speedup_x": 3.54
       },
       {
         "algo": "svm",
@@ -406,7 +409,7 @@
           "error": "SvmClassifier.fit() got an unexpected keyword argument 'sample_weight'"
         },
         "sklearn": {
-          "median_seconds": 0.03073,
+          "median_seconds": 0.02853,
           "accuracy": 0.7977,
           "roc_auc": 0.8422
         }
@@ -416,16 +419,16 @@
         "display": "KNN",
         "rust": true,
         "ml": {
-          "median_seconds": 0.06355,
+          "median_seconds": 0.06077,
           "accuracy": 0.7601,
           "roc_auc": 0.6784
         },
         "sklearn": {
-          "median_seconds": 0.03256,
+          "median_seconds": 0.03266,
           "accuracy": 0.7622,
           "roc_auc": 0.7673
         },
-        "speedup_x": 0.51
+        "speedup_x": 0.54
       }
     ],
     "fraud_10k": [
@@ -434,48 +437,48 @@
         "display": "Random Forest",
         "rust": true,
         "ml": {
-          "median_seconds": 0.04465,
+          "median_seconds": 0.04411,
           "accuracy": 0.992,
           "roc_auc": 0.9785
         },
         "sklearn": {
-          "median_seconds": 1.66596,
+          "median_seconds": 1.66108,
           "accuracy": 0.992,
           "roc_auc": 0.9591
         },
-        "speedup_x": 37.31
+        "speedup_x": 37.66
       },
       {
         "algo": "extra_trees",
         "display": "Extra Trees",
         "rust": true,
         "ml": {
-          "median_seconds": 0.05458,
+          "median_seconds": 0.05404,
           "accuracy": 0.991,
           "roc_auc": 0.9624
         },
         "sklearn": {
-          "median_seconds": 0.36052,
+          "median_seconds": 0.35751,
           "accuracy": 0.9915,
           "roc_auc": 0.9652
         },
-        "speedup_x": 6.61
+        "speedup_x": 6.62
       },
       {
         "algo": "decision_tree",
         "display": "Decision Tree",
         "rust": true,
         "ml": {
-          "median_seconds": 0.03997,
+          "median_seconds": 0.03846,
           "accuracy": 0.9845,
           "roc_auc": 0.506
         },
         "sklearn": {
-          "median_seconds": 0.13461,
+          "median_seconds": 0.1349,
           "accuracy": 0.985,
           "roc_auc": 0.9147
         },
-        "speedup_x": 3.37
+        "speedup_x": 3.51
       },
       {
         "algo": "gradient_boosting",
@@ -485,7 +488,7 @@
           "error": "GradientBoosting.__new__() got an unexpected keyword argument 'reg_lambda'"
         },
         "sklearn": {
-          "median_seconds": 0.43615,
+          "median_seconds": 0.51912,
           "accuracy": 0.992,
           "roc_auc": 0.9716
         }
@@ -495,45 +498,48 @@
         "display": "Logistic",
         "rust": true,
         "ml": {
-          "median_seconds": 0.03826,
+          "median_seconds": 0.03775,
           "accuracy": 0.9915,
           "roc_auc": 0.9669
         },
         "sklearn": {
-          "median_seconds": 0.01729,
+          "median_seconds": 0.01573,
           "accuracy": 0.9915,
           "roc_auc": 0.9674
         },
-        "speedup_x": 0.45
+        "speedup_x": 0.42
       },
       {
         "algo": "naive_bayes",
         "display": "Naive Bayes",
         "rust": true,
         "ml": {
-          "median_seconds": 0.03158,
+          "median_seconds": 0.03039,
           "accuracy": 0.968,
           "roc_auc": 0.9578
         },
         "sklearn": {
-          "median_seconds": 0.01147,
+          "median_seconds": 0.01025,
           "accuracy": 0.968,
           "roc_auc": 0.958
         },
-        "speedup_x": 0.36
+        "speedup_x": 0.34
       },
       {
         "algo": "adaboost",
         "display": "AdaBoost",
         "rust": true,
         "ml": {
-          "median_seconds": 0.385,
+          "median_seconds": 0.38238,
           "accuracy": 0.991,
           "roc_auc": 0.9621
         },
         "sklearn": {
-          "error": "AdaBoostClassifier.__init__() got an unexpected keyword argument 'algorithm'"
-        }
+          "median_seconds": 1.41304,
+          "accuracy": 0.9925,
+          "roc_auc": 0.9691
+        },
+        "speedup_x": 3.7
       },
       {
         "algo": "svm",
@@ -543,7 +549,7 @@
           "error": "SvmClassifier.fit() got an unexpected keyword argument 'sample_weight'"
         },
         "sklearn": {
-          "median_seconds": 0.0189,
+          "median_seconds": 0.01617,
           "accuracy": 0.9905,
           "roc_auc": 0.9654
         }
@@ -553,16 +559,16 @@
         "display": "KNN",
         "rust": true,
         "ml": {
-          "median_seconds": 0.06092,
+          "median_seconds": 0.04417,
           "accuracy": 0.9895,
           "roc_auc": 0.9672
         },
         "sklearn": {
-          "median_seconds": 0.02797,
+          "median_seconds": 0.02288,
           "accuracy": 0.9895,
           "roc_auc": 0.936
         },
-        "speedup_x": 0.46
+        "speedup_x": 0.52
       }
     ],
     "spam_4k": [
@@ -571,48 +577,48 @@
         "display": "Random Forest",
         "rust": true,
         "ml": {
-          "median_seconds": 0.0515,
+          "median_seconds": 0.04809,
           "accuracy": 0.9522,
           "roc_auc": 0.9896
         },
         "sklearn": {
-          "median_seconds": 0.52015,
+          "median_seconds": 0.49132,
           "accuracy": 0.962,
           "roc_auc": 0.9898
         },
-        "speedup_x": 10.1
+        "speedup_x": 10.22
       },
       {
         "algo": "extra_trees",
         "display": "Extra Trees",
         "rust": true,
         "ml": {
-          "median_seconds": 0.05344,
+          "median_seconds": 0.05182,
           "accuracy": 0.9653,
           "roc_auc": 0.9889
         },
         "sklearn": {
-          "median_seconds": 0.35107,
+          "median_seconds": 0.34101,
           "accuracy": 0.9653,
           "roc_auc": 0.9894
         },
-        "speedup_x": 6.57
+        "speedup_x": 6.58
       },
       {
         "algo": "decision_tree",
         "display": "Decision Tree",
         "rust": true,
         "ml": {
-          "median_seconds": 0.05997,
+          "median_seconds": 0.05715,
           "accuracy": 0.8882,
           "roc_auc": 0.4917
         },
         "sklearn": {
-          "median_seconds": 0.03803,
+          "median_seconds": 0.03649,
           "accuracy": 0.9012,
           "roc_auc": 0.9002
         },
-        "speedup_x": 0.63
+        "speedup_x": 0.64
       },
       {
         "algo": "gradient_boosting",
@@ -622,7 +628,7 @@
           "error": "GradientBoosting.__new__() got an unexpected keyword argument 'reg_lambda'"
         },
         "sklearn": {
-          "median_seconds": 0.55422,
+          "median_seconds": 0.53547,
           "accuracy": 0.9674,
           "roc_auc": 0.993
         }
@@ -632,45 +638,48 @@
         "display": "Logistic",
         "rust": true,
         "ml": {
-          "median_seconds": 0.04478,
+          "median_seconds": 0.04232,
           "accuracy": 0.9283,
           "roc_auc": 0.9725
         },
         "sklearn": {
-          "median_seconds": 0.0185,
+          "median_seconds": 0.01694,
           "accuracy": 0.9273,
           "roc_auc": 0.9725
         },
-        "speedup_x": 0.41
+        "speedup_x": 0.4
       },
       {
         "algo": "naive_bayes",
         "display": "Naive Bayes",
         "rust": true,
         "ml": {
-          "median_seconds": 0.03658,
+          "median_seconds": 0.03478,
           "accuracy": 0.8067,
           "roc_auc": 0.9171
         },
         "sklearn": {
-          "median_seconds": 0.01229,
+          "median_seconds": 0.011,
           "accuracy": 0.8067,
           "roc_auc": 0.9433
         },
-        "speedup_x": 0.34
+        "speedup_x": 0.32
       },
       {
         "algo": "adaboost",
         "display": "AdaBoost",
         "rust": true,
         "ml": {
-          "median_seconds": 0.1704,
+          "median_seconds": 0.16881,
           "accuracy": 0.937,
           "roc_auc": 0.9764
         },
         "sklearn": {
-          "error": "AdaBoostClassifier.__init__() got an unexpected keyword argument 'algorithm'"
-        }
+          "median_seconds": 0.44896,
+          "accuracy": 0.9446,
+          "roc_auc": 0.9846
+        },
+        "speedup_x": 2.66
       },
       {
         "algo": "svm",
@@ -680,7 +689,7 @@
           "error": "SvmClassifier.fit() got an unexpected keyword argument 'sample_weight'"
         },
         "sklearn": {
-          "median_seconds": 0.02756,
+          "median_seconds": 0.02585,
           "accuracy": 0.9294,
           "roc_auc": 0.9739
         }
@@ -690,16 +699,16 @@
         "display": "KNN",
         "rust": true,
         "ml": {
-          "median_seconds": 0.04075,
+          "median_seconds": 0.03774,
           "accuracy": 0.9055,
           "roc_auc": 0.8995
         },
         "sklearn": {
-          "median_seconds": 0.0186,
+          "median_seconds": 0.01628,
           "accuracy": 0.9055,
           "roc_auc": 0.9586
         },
-        "speedup_x": 0.46
+        "speedup_x": 0.43
       }
     ],
     "bank_45k": [
@@ -708,48 +717,48 @@
         "display": "Random Forest",
         "rust": true,
         "ml": {
-          "median_seconds": 0.32707,
+          "median_seconds": 0.27854,
           "accuracy": 0.9051,
           "roc_auc": 0.9198
         },
         "sklearn": {
-          "median_seconds": 2.00472,
+          "median_seconds": 1.88672,
           "accuracy": 0.9051,
           "roc_auc": 0.9243
         },
-        "speedup_x": 6.13
+        "speedup_x": 6.77
       },
       {
         "algo": "extra_trees",
         "display": "Extra Trees",
         "rust": true,
         "ml": {
-          "median_seconds": 0.2262,
+          "median_seconds": 0.17837,
           "accuracy": 0.9012,
           "roc_auc": 0.9225
         },
         "sklearn": {
-          "median_seconds": 1.38404,
+          "median_seconds": 1.24022,
           "accuracy": 0.899,
           "roc_auc": 0.9201
         },
-        "speedup_x": 6.12
+        "speedup_x": 6.95
       },
       {
         "algo": "decision_tree",
         "display": "Decision Tree",
         "rust": true,
         "ml": {
-          "median_seconds": 0.18055,
+          "median_seconds": 0.13573,
           "accuracy": 0.8716,
           "roc_auc": 0.4992
         },
         "sklearn": {
-          "median_seconds": 0.17719,
+          "median_seconds": 0.14696,
           "accuracy": 0.8731,
           "roc_auc": 0.6892
         },
-        "speedup_x": 0.98
+        "speedup_x": 1.08
       },
       {
         "algo": "gradient_boosting",
@@ -759,7 +768,7 @@
           "error": "GradientBoosting.__new__() got an unexpected keyword argument 'reg_lambda'"
         },
         "sklearn": {
-          "median_seconds": 0.6947,
+          "median_seconds": 0.53366,
           "accuracy": 0.9075,
           "roc_auc": 0.9328
         }
@@ -769,45 +778,48 @@
         "display": "Logistic",
         "rust": true,
         "ml": {
-          "median_seconds": 0.27672,
+          "median_seconds": 0.18392,
           "accuracy": 0.9004,
           "roc_auc": 0.9067
         },
         "sklearn": {
-          "median_seconds": 0.10377,
+          "median_seconds": 0.07319,
           "accuracy": 0.8912,
           "roc_auc": 0.8708
         },
-        "speedup_x": 0.38
+        "speedup_x": 0.4
       },
       {
         "algo": "naive_bayes",
         "display": "Naive Bayes",
         "rust": true,
         "ml": {
-          "median_seconds": 0.15608,
+          "median_seconds": 0.11151,
           "accuracy": 0.8412,
           "roc_auc": 0.8188
         },
         "sklearn": {
-          "median_seconds": 0.09597,
+          "median_seconds": 0.07892,
           "accuracy": 0.8412,
           "roc_auc": 0.8188
         },
-        "speedup_x": 0.61
+        "speedup_x": 0.71
       },
       {
         "algo": "adaboost",
         "display": "AdaBoost",
         "rust": true,
         "ml": {
-          "median_seconds": 0.37765,
+          "median_seconds": 0.32892,
           "accuracy": 0.8939,
           "roc_auc": 0.8653
         },
         "sklearn": {
-          "error": "AdaBoostClassifier.__init__() got an unexpected keyword argument 'algorithm'"
-        }
+          "median_seconds": 0.96112,
+          "accuracy": 0.8942,
+          "roc_auc": 0.9019
+        },
+        "speedup_x": 2.92
       },
       {
         "algo": "svm",
@@ -817,7 +829,7 @@
           "error": "SvmClassifier.fit() got an unexpected keyword argument 'sample_weight'"
         },
         "sklearn": {
-          "median_seconds": 0.11535,
+          "median_seconds": 0.08158,
           "accuracy": 0.8901,
           "roc_auc": 0.8755
         }
@@ -837,48 +849,48 @@
         "display": "Random Forest",
         "rust": true,
         "ml": {
-          "median_seconds": 0.30926,
+          "median_seconds": 0.26365,
           "accuracy": 0.8576,
           "roc_auc": 0.9101
         },
         "sklearn": {
-          "median_seconds": 1.53519,
+          "median_seconds": 1.42488,
           "accuracy": 0.8447,
           "roc_auc": 0.8901
         },
-        "speedup_x": 4.96
+        "speedup_x": 5.4
       },
       {
         "algo": "extra_trees",
         "display": "Extra Trees",
         "rust": true,
         "ml": {
-          "median_seconds": 0.20799,
+          "median_seconds": 0.16213,
           "accuracy": 0.8546,
           "roc_auc": 0.893
         },
         "sklearn": {
-          "median_seconds": 1.46443,
+          "median_seconds": 1.34734,
           "accuracy": 0.8332,
           "roc_auc": 0.8519
         },
-        "speedup_x": 7.04
+        "speedup_x": 8.31
       },
       {
         "algo": "decision_tree",
         "display": "Decision Tree",
         "rust": true,
         "ml": {
-          "median_seconds": 0.15924,
+          "median_seconds": 0.11018,
           "accuracy": 0.8237,
           "roc_auc": 0.8463
         },
         "sklearn": {
-          "median_seconds": 0.12664,
+          "median_seconds": 0.09686,
           "accuracy": 0.8135,
           "roc_auc": 0.7606
         },
-        "speedup_x": 0.8
+        "speedup_x": 0.88
       },
       {
         "algo": "gradient_boosting",
@@ -888,7 +900,7 @@
           "error": "GradientBoosting.__new__() got an unexpected keyword argument 'reg_lambda'"
         },
         "sklearn": {
-          "median_seconds": 0.6393,
+          "median_seconds": 0.52281,
           "accuracy": 0.8663,
           "roc_auc": 0.924
         }
@@ -898,45 +910,48 @@
         "display": "Logistic",
         "rust": true,
         "ml": {
-          "median_seconds": 0.3188,
+          "median_seconds": 0.24644,
           "accuracy": 0.8479,
           "roc_auc": 0.9032
         },
         "sklearn": {
-          "median_seconds": 0.08671,
+          "median_seconds": 0.06325,
           "accuracy": 0.818,
           "roc_auc": 0.8483
         },
-        "speedup_x": 0.27
+        "speedup_x": 0.26
       },
       {
         "algo": "naive_bayes",
         "display": "Naive Bayes",
         "rust": true,
         "ml": {
-          "median_seconds": 0.13101,
+          "median_seconds": 0.092,
           "accuracy": 0.803,
           "roc_auc": 0.8514
         },
         "sklearn": {
-          "median_seconds": 0.07927,
+          "median_seconds": 0.05525,
           "accuracy": 0.8004,
           "roc_auc": 0.8522
         },
-        "speedup_x": 0.61
+        "speedup_x": 0.6
       },
       {
         "algo": "adaboost",
         "display": "AdaBoost",
         "rust": true,
         "ml": {
-          "median_seconds": 0.30197,
+          "median_seconds": 0.2666,
           "accuracy": 0.8485,
           "roc_auc": 0.8864
         },
         "sklearn": {
-          "error": "AdaBoostClassifier.__init__() got an unexpected keyword argument 'algorithm'"
-        }
+          "median_seconds": 0.71181,
+          "accuracy": 0.8541,
+          "roc_auc": 0.9064
+        },
+        "speedup_x": 2.67
       },
       {
         "algo": "svm",
@@ -946,7 +961,7 @@
           "error": "SvmClassifier.fit() got an unexpected keyword argument 'sample_weight'"
         },
         "sklearn": {
-          "median_seconds": 0.09371,
+          "median_seconds": 0.06969,
           "accuracy": 0.8195,
           "roc_auc": 0.8475
         }
@@ -966,48 +981,48 @@
         "display": "Random Forest",
         "rust": true,
         "ml": {
-          "median_seconds": 0.21672,
+          "median_seconds": 0.2162,
           "accuracy": 0.9015,
           "roc_auc": 0.9636
         },
         "sklearn": {
-          "median_seconds": 2.23323,
+          "median_seconds": 2.19618,
           "accuracy": 0.8979,
           "roc_auc": 0.9643
         },
-        "speedup_x": 10.3
+        "speedup_x": 10.16
       },
       {
         "algo": "extra_trees",
         "display": "Extra Trees",
         "rust": true,
         "ml": {
-          "median_seconds": 0.10142,
+          "median_seconds": 0.09745,
           "accuracy": 0.8892,
           "roc_auc": 0.9558
         },
         "sklearn": {
-          "median_seconds": 1.29904,
+          "median_seconds": 1.24456,
           "accuracy": 0.8901,
           "roc_auc": 0.9579
         },
-        "speedup_x": 12.81
+        "speedup_x": 12.77
       },
       {
         "algo": "decision_tree",
         "display": "Decision Tree",
         "rust": true,
         "ml": {
-          "median_seconds": 0.05937,
+          "median_seconds": 0.05365,
           "accuracy": 0.8759,
           "roc_auc": 0.4992
         },
         "sklearn": {
-          "median_seconds": 0.11848,
+          "median_seconds": 0.11514,
           "accuracy": 0.8699,
           "roc_auc": 0.8666
         },
-        "speedup_x": 2.0
+        "speedup_x": 2.15
       },
       {
         "algo": "gradient_boosting",
@@ -1017,7 +1032,7 @@
           "error": "GradientBoosting.__new__() got an unexpected keyword argument 'reg_lambda'"
         },
         "sklearn": {
-          "median_seconds": 0.63213,
+          "median_seconds": 0.51954,
           "accuracy": 0.8787,
           "roc_auc": 0.9528
         }
@@ -1027,45 +1042,48 @@
         "display": "Logistic",
         "rust": true,
         "ml": {
-          "median_seconds": 0.04887,
+          "median_seconds": 0.04114,
           "accuracy": 0.7668,
           "roc_auc": 0.8282
         },
         "sklearn": {
-          "median_seconds": 0.03512,
+          "median_seconds": 0.03244,
           "accuracy": 0.7535,
           "roc_auc": 0.8211
         },
-        "speedup_x": 0.72
+        "speedup_x": 0.79
       },
       {
         "algo": "naive_bayes",
         "display": "Naive Bayes",
         "rust": true,
         "ml": {
-          "median_seconds": 0.03307,
+          "median_seconds": 0.02591,
           "accuracy": 0.7134,
           "roc_auc": 0.7967
         },
         "sklearn": {
-          "median_seconds": 0.02127,
+          "median_seconds": 0.01918,
           "accuracy": 0.7134,
           "roc_auc": 0.7967
         },
-        "speedup_x": 0.64
+        "speedup_x": 0.74
       },
       {
         "algo": "adaboost",
         "display": "AdaBoost",
         "rust": true,
         "ml": {
-          "median_seconds": 0.20216,
+          "median_seconds": 0.19665,
           "accuracy": 0.7802,
           "roc_auc": 0.8588
         },
         "sklearn": {
-          "error": "AdaBoostClassifier.__init__() got an unexpected keyword argument 'algorithm'"
-        }
+          "median_seconds": 1.03745,
+          "accuracy": 0.7994,
+          "roc_auc": 0.8777
+        },
+        "speedup_x": 5.28
       },
       {
         "algo": "svm",
@@ -1075,7 +1093,7 @@
           "error": "SvmClassifier.fit() got an unexpected keyword argument 'sample_weight'"
         },
         "sklearn": {
-          "median_seconds": 0.03552,
+          "median_seconds": 0.03305,
           "accuracy": 0.753,
           "roc_auc": 0.8206
         }
@@ -1092,10 +1110,10 @@
   },
   "tier2_screener": {
     "ml_screen": {
-      "min_seconds": 0.18528,
-      "median_seconds": 0.18552,
-      "p95_seconds": 0.18764,
-      "iqr_seconds": 0.00074,
+      "min_seconds": 0.17706,
+      "median_seconds": 0.17876,
+      "p95_seconds": 0.18305,
+      "iqr_seconds": 0.0006,
       "rss_delta_mb": -1.0,
       "tracemalloc_peak_mb": 9.88,
       "best_roc_auc": 0.8492,
