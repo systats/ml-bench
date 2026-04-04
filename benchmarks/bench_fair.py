@@ -735,18 +735,59 @@ def run_all(
         print("  early_stopping=False | n_jobs=1")
         print("=" * 60)
 
-    # Datasets
+    # Datasets — grows organically; each entry is independent try/except
+    # Anchor: churn always present (fallback to synthetic if OpenML down)
     datasets = []
     try:
         churn = ml.dataset("churn")
         datasets.append({"name": "churn_7k", "data": churn, "target": "churn"})
     except Exception:
-        # Fallback to synthetic
         from sklearn.datasets import make_classification
         X, y = make_classification(n_samples=7000, n_features=20, random_state=42)
         df = pd.DataFrame(X, columns=[f"f{i}" for i in range(20)])
         df["target"] = y
         datasets.append({"name": "synthetic_7k", "data": df, "target": "target"})
+
+    # fraud — 9,992 rows, synthetic, no download required
+    try:
+        fraud = ml.dataset("fraud")
+        fraud_target = "fraud"
+        datasets.append({"name": "fraud_10k", "data": fraud, "target": fraud_target})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] fraud: {e}")
+
+    # spam — 4,601 rows, binary spam classification
+    try:
+        spam = ml.dataset("spam")
+        datasets.append({"name": "spam_4k", "data": spam, "target": "spam"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] spam: {e}")
+
+    # bank — 45,211 rows, bank marketing subscription prediction
+    try:
+        bank = ml.dataset("bank")
+        datasets.append({"name": "bank_45k", "data": bank, "target": "subscribed"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] bank: {e}")
+
+    # adult — 48,842 rows, income >50k classification
+    try:
+        adult = ml.dataset("adult")
+        datasets.append({"name": "adult_48k", "data": adult, "target": "income"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] adult: {e}")
+
+    # electricity — 45,312 rows, electricity price direction (UP/DOWN)
+    try:
+        elec = ml.dataset("electricity")
+        datasets.append({"name": "electricity_45k", "data": elec, "target": "price_up"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] electricity: {e}")
 
     if include_beast:
         from sklearn.datasets import make_classification
