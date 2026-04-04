@@ -313,6 +313,19 @@ ALGO_GRID = [
 ]
 
 
+# Extra frameworks per algo: algo_key → [(fw_key, module, class, kwargs, needs_scale)]
+# Only algorithms where the framework has a real equivalent.
+EXTRA_FW_GRID: dict[str, list[tuple]] = {
+    "gradient_boosting": [
+        ("xgboost",  "xgboost",   "XGBClassifier",  {"n_estimators": 100, "random_state": 42, "verbosity": 0, "eval_metric": "logloss"}, False),
+        ("lightgbm", "lightgbm",  "LGBMClassifier",  {"n_estimators": 100, "random_state": 42, "verbose": -1}, False),
+    ],
+    "random_forest": [
+        ("xgboost", "xgboost", "XGBRFClassifier", {"n_estimators": 100, "random_state": 42, "verbosity": 0, "eval_metric": "logloss"}, False),
+    ],
+}
+
+
 def _sklearn_generic_pipeline(train_df, valid_df, target, make_estimator, needs_scale=False):
     """Generic sklearn pipeline: OrdinalEncode → Impute → (Scale) → fit → metrics."""
 
@@ -471,7 +484,84 @@ def tier1_algo_grid(datasets: list[dict], json_only: bool = False) -> dict:
                 if not json_only:
                     print(f"  sklearn ERROR: {e}")
 
+            # ── extra frameworks (xgboost, lightgbm, …) ──
+            for (fw_key, fw_mod, fw_cls, fw_kwargs, fw_scale) in EXTRA_FW_GRID.get(ml_algo, []):
+                try:
+                    mod = importlib.import_module(fw_mod)
+                    cls = getattr(mod, fw_cls)
+                    def make_extra(_cls=cls, _kw=fw_kwargs):
+                        return _cls(**_kw)
+                    def _fw_fit(_s=s, _t=target, _me=make_extra, _ns=fw_scale):
+                        _sklearn_generic_pipeline(_s.train, _s.valid, _t, _me, _ns)
+                    fw_timing = run_timed(_fw_fit, warmup=2, runs=5)
+                    fw_metrics = _sklearn_generic_pipeline(s.train, s.valid, target, make_extra, fw_scale)
+                    row[fw_key] = {
+                        "median_seconds": fw_timing["median_seconds"],
+                        "accuracy": fw_metrics["accuracy"],
+                        "roc_auc": fw_metrics["roc_auc"],
+                    }
+                    if not json_only:
+                        t_ms = fw_timing["median_seconds"] * 1000
+                        print(f"  {fw_key} {t_ms:6.0f}ms  AUC={fw_metrics['roc_auc']}", end="")
+                except Exception as e:
+                    row[fw_key] = {"error": str(e)[:120]}
+                    if not json_only:
+                        print(f"  {fw_key} ERROR: {e}", end="")
+
             ds_results.append(row)
+
+        # ── FLAML AutoML row (one per dataset, best model in 30s) ──
+        try:
+            from flaml import AutoML as _AutoML
+            from sklearn.impute import SimpleImputer
+            from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
+
+            le = LabelEncoder()
+            X_tr = s.train.drop(columns=[target]).copy()
+            X_v  = s.valid.drop(columns=[target]).copy()
+            y_tr = le.fit_transform(s.train[target])
+            y_v  = le.transform(s.valid[target])
+
+            cats = X_tr.select_dtypes(include=["object", "category"]).columns.tolist()
+            if cats:
+                enc = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
+                X_tr[cats] = enc.fit_transform(X_tr[cats])
+                X_v[cats]  = enc.transform(X_v[cats])
+            X_tr = SimpleImputer(strategy="median").fit_transform(X_tr.values.astype(float))
+            X_v  = SimpleImputer(strategy="median").fit_transform(X_v.astype(float))
+
+            import time as _time
+            t0 = _time.perf_counter()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                automl = _AutoML()
+                automl.fit(X_tr, y_tr, task="classification", time_budget=15, verbose=0, seed=42)
+            elapsed = _time.perf_counter() - t0
+
+            from sklearn.metrics import roc_auc_score
+            proba = automl.predict_proba(X_v)
+            pos_idx = 1 if proba.shape[1] > 1 else 0
+            auc = float(roc_auc_score(y_v, proba[:, pos_idx]))
+            best_algo = getattr(automl, "best_estimator", "?")
+
+            ds_results.append({
+                "algo": "flaml_auto", "display": "FLAML AutoML",
+                "rust": False, "note": f"best: {best_algo}",
+                "flaml": {
+                    "median_seconds": round(elapsed, 3),
+                    "accuracy": None,
+                    "roc_auc": round(auc, 4),
+                },
+            })
+            if not json_only:
+                print(f"\n  [{'flaml_auto':20s}] flaml {elapsed*1000:6.0f}ms  AUC={auc:.4f}  best={best_algo}")
+        except Exception as e:
+            ds_results.append({
+                "algo": "flaml_auto", "display": "FLAML AutoML",
+                "rust": False, "flaml": {"error": str(e)[:120]},
+            })
+            if not json_only:
+                print(f"\n  [flaml_auto] FLAML ERROR: {e}")
 
         results[name] = ds_results
 
