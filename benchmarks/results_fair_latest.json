@@ -1,0 +1,104 @@
+{
+  "timestamp": "2026-04-04T13:41:08.234674+00:00",
+  "versions": {
+    "ml": "1.2.0",
+    "sklearn": "1.8.0",
+    "pandas": "2.3.3",
+    "numpy": "2.4.2",
+    "python": "3.12.3",
+    "platform": "Linux",
+    "machine": "x86_64",
+    "cpu_count": 24,
+    "ram_gb": -1.0
+  },
+  "note": "CPU-only benchmark. n_jobs=1. early_stopping=False for fair comparison.",
+  "tier1_overhead": {
+    "churn_7k": {
+      "ml_rf": {
+        "min_seconds": 0.22279,
+        "median_seconds": 0.24446,
+        "p95_seconds": 0.25369,
+        "iqr_seconds": 0.01839,
+        "rss_delta_mb": -1.0,
+        "tracemalloc_peak_mb": 3.3,
+        "accuracy": 0.7892,
+        "roc_auc": 0.8318
+      },
+      "sklearn_rf": {
+        "min_seconds": 1.26523,
+        "median_seconds": 1.41124,
+        "p95_seconds": 1.58691,
+        "iqr_seconds": 0.18329,
+        "rss_delta_mb": -1.0,
+        "tracemalloc_peak_mb": 3.64,
+        "accuracy": 0.7814,
+        "roc_auc": 0.8229
+      },
+      "overhead_pct_rf": -82.7,
+      "accuracy_delta_rf": 0.0078,
+      "ml_logistic": {
+        "min_seconds": 0.21695,
+        "median_seconds": 0.23686,
+        "p95_seconds": 0.26809,
+        "iqr_seconds": 0.0263,
+        "rss_delta_mb": -1.0,
+        "tracemalloc_peak_mb": 9.86,
+        "accuracy": 0.7999,
+        "roc_auc": 0.8492
+      },
+      "sklearn_logistic": {
+        "min_seconds": 0.11456,
+        "median_seconds": 0.12247,
+        "p95_seconds": 0.15735,
+        "iqr_seconds": 0.0092,
+        "rss_delta_mb": -1.0,
+        "tracemalloc_peak_mb": 3.64,
+        "accuracy": 0.7984,
+        "roc_auc": 0.8449
+      },
+      "overhead_pct_logistic": 93.4,
+      "accuracy_delta_logistic": 0.0015
+    }
+  },
+  "tier2_screener": {
+    "ml_screen": {
+      "min_seconds": 0.70174,
+      "median_seconds": 0.72657,
+      "p95_seconds": 0.80937,
+      "iqr_seconds": 0.09579,
+      "rss_delta_mb": -1.0,
+      "tracemalloc_peak_mb": 9.88,
+      "best_roc_auc": 0.8492,
+      "n_models": 2,
+      "strategy": "holdout_defaults"
+    },
+    "pycaret": {
+      "skipped": true,
+      "reason": "not installed"
+    }
+  },
+  "tier4_messy_data": {
+    "scenarios": [
+      {
+        "scenario": "String targets + categoricals",
+        "ml": "FAIL: GradientBoosting.__new__() got an unexpected keyword argument 'reg_lambda'",
+        "sklearn_raw": "OK (numeric only)"
+      },
+      {
+        "scenario": "NaN in features (SVM)",
+        "ml": "OK (trees handle NaN)",
+        "sklearn_raw": "FAIL: ValueError"
+      },
+      {
+        "scenario": "Unscaled features (SVM)",
+        "ml": "FAIL: SvmClassifier.fit() got an unexpected keyword argument 'sample_weight'",
+        "sklearn_raw": "OK (AUC=0.487, NO scaling)"
+      },
+      {
+        "scenario": "Prevent test-set peeking",
+        "ml": "assess() blocks repeat calls",
+        "sklearn_raw": "no guard (user responsibility)"
+      }
+    ]
+  }
+}
