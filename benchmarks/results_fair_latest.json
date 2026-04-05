@@ -541,6 +541,16 @@
           "median_seconds": 22.2731,
           "accuracy": 0.7963,
           "roc_auc": 0.8319
+        },
+        "caret": {
+          "median_seconds": 0.056,
+          "accuracy": 0.85,
+          "roc_auc": 0.6905
+        },
+        "ml_r": {
+          "median_seconds": 0.034,
+          "accuracy": 0.855,
+          "roc_auc": 0.707
         }
       },
       {
@@ -557,7 +567,12 @@
           "accuracy": 0.7764,
           "roc_auc": 0.7962
         },
-        "speedup_x": 7.18
+        "speedup_x": 7.18,
+        "ml_r": {
+          "median_seconds": 0.087,
+          "accuracy": 0.83,
+          "roc_auc": 0.7344
+        }
       },
       {
         "algo": "decision_tree",
@@ -573,7 +588,17 @@
           "accuracy": 0.7168,
           "roc_auc": 0.6317
         },
-        "speedup_x": 0.6
+        "speedup_x": 0.6,
+        "caret": {
+          "median_seconds": 0.014,
+          "accuracy": 0.835,
+          "roc_auc": 0.6707
+        },
+        "ml_r": {
+          "median_seconds": 0.006,
+          "accuracy": 0.835,
+          "roc_auc": 0.4834
+        }
       },
       {
         "algo": "gradient_boosting",
@@ -599,6 +624,11 @@
           "median_seconds": 0.07534,
           "accuracy": 0.7871,
           "roc_auc": 0.8266
+        },
+        "caret": {
+          "median_seconds": 0.022,
+          "accuracy": 0.835,
+          "roc_auc": 0.697
         }
       },
       {
@@ -615,7 +645,17 @@
           "accuracy": 0.8112,
           "roc_auc": 0.8366
         },
-        "speedup_x": 0.41
+        "speedup_x": 0.41,
+        "caret": {
+          "median_seconds": 0.013,
+          "accuracy": 0.83,
+          "roc_auc": 0.7039
+        },
+        "ml_r": {
+          "median_seconds": 0.003,
+          "accuracy": 0.83,
+          "roc_auc": 0.7042
+        }
       },
       {
         "algo": "naive_bayes",
@@ -631,7 +671,12 @@
           "accuracy": 0.7395,
           "roc_auc": 0.816
         },
-        "speedup_x": 0.52
+        "speedup_x": 0.52,
+        "ml_r": {
+          "median_seconds": 0.002,
+          "accuracy": 0.83,
+          "roc_auc": 0.7024
+        }
       },
       {
         "algo": "adaboost",
@@ -663,7 +708,17 @@
           "accuracy": 0.8105,
           "roc_auc": 0.8355
         },
-        "speedup_x": 0.02
+        "speedup_x": 0.02,
+        "caret": {
+          "median_seconds": 0.025,
+          "accuracy": 0.84,
+          "roc_auc": 0.7227
+        },
+        "ml_r": {
+          "median_seconds": 0.021,
+          "accuracy": 0.84,
+          "roc_auc": 0.7078
+        }
       },
       {
         "algo": "knn",
@@ -679,7 +734,17 @@
           "accuracy": 0.7651,
           "roc_auc": 0.7787
         },
-        "speedup_x": 0.56
+        "speedup_x": 0.56,
+        "caret": {
+          "median_seconds": 0.012,
+          "accuracy": 0.825,
+          "roc_auc": 0.7005
+        },
+        "ml_r": {
+          "median_seconds": 0.001,
+          "accuracy": 0.84,
+          "roc_auc": 0.6297
+        }
       },
       {
         "algo": "flaml_auto",
@@ -713,6 +778,16 @@
           "median_seconds": 22.26786,
           "accuracy": 0.9905,
           "roc_auc": 0.9825
+        },
+        "caret": {
+          "median_seconds": 0.303,
+          "accuracy": 1,
+          "roc_auc": 1
+        },
+        "ml_r": {
+          "median_seconds": 0.274,
+          "accuracy": 1,
+          "roc_auc": 1
         }
       },
       {
@@ -729,7 +804,12 @@
           "accuracy": 0.99,
           "roc_auc": 0.9833
         },
-        "speedup_x": 7.48
+        "speedup_x": 7.48,
+        "ml_r": {
+          "median_seconds": 0.38,
+          "accuracy": 0.999,
+          "roc_auc": 1
+        }
       },
       {
         "algo": "decision_tree",
@@ -745,7 +825,17 @@
           "accuracy": 0.9825,
           "roc_auc": 0.9134
         },
-        "speedup_x": 3.07
+        "speedup_x": 3.07,
+        "caret": {
+          "median_seconds": 0.025,
+          "accuracy": 1,
+          "roc_auc": 1
+        },
+        "ml_r": {
+          "median_seconds": 0.018,
+          "accuracy": 1,
+          "roc_auc": 1
+        }
       },
       {
         "algo": "gradient_boosting",
@@ -771,6 +861,11 @@
           "median_seconds": 0.06991,
           "accuracy": 0.99,
           "roc_auc": 0.9938
+        },
+        "caret": {
+          "median_seconds": 0.151,
+          "accuracy": 1,
+          "roc_auc": 1
         }
       },
       {
@@ -787,7 +882,17 @@
           "accuracy": 0.989,
           "roc_auc": 0.9846
         },
-        "speedup_x": 0.39
+        "speedup_x": 0.39,
+        "caret": {
+          "median_seconds": 0.037,
+          "accuracy": 0.9965,
+          "roc_auc": 0.9844
+        },
+        "ml_r": {
+          "median_seconds": 0.015,
+          "accuracy": 0.9965,
+          "roc_auc": 0.9845
+        }
       },
       {
         "algo": "naive_bayes",
@@ -803,7 +908,12 @@
           "accuracy": 0.971,
           "roc_auc": 0.9624
         },
-        "speedup_x": 0.34
+        "speedup_x": 0.34,
+        "ml_r": {
+          "median_seconds": 0.01,
+          "accuracy": 0.9875,
+          "roc_auc": 0.9953
+        }
       },
       {
         "algo": "adaboost",
@@ -835,7 +945,17 @@
           "accuracy": 0.989,
           "roc_auc": 0.9879
         },
-        "speedup_x": 0.03
+        "speedup_x": 0.03,
+        "caret": {
+          "median_seconds": 0.115,
+          "accuracy": 0.997,
+          "roc_auc": 0.9998
+        },
+        "ml_r": {
+          "median_seconds": 0.142,
+          "accuracy": 0.997,
+          "roc_auc": 0.9998
+        }
       },
       {
         "algo": "knn",
@@ -851,7 +971,17 @@
           "accuracy": 0.9885,
           "roc_auc": 0.9473
         },
-        "speedup_x": 0.52
+        "speedup_x": 0.52,
+        "caret": {
+          "median_seconds": 0.024,
+          "accuracy": 0.9945,
+          "roc_auc": 0.9523
+        },
+        "ml_r": {
+          "median_seconds": 0.007,
+          "accuracy": 0.991,
+          "roc_auc": 0.9047
+        }
       },
       {
         "algo": "flaml_auto",
