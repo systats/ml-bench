@@ -317,11 +317,11 @@ ALGO_GRID = [
 # Only algorithms where the framework has a real equivalent.
 EXTRA_FW_GRID: dict[str, list[tuple]] = {
     "gradient_boosting": [
-        ("xgboost",  "xgboost",   "XGBClassifier",  {"n_estimators": 100, "random_state": 42, "verbosity": 0, "eval_metric": "logloss", "nthread": 1}, False),
+        ("xgboost",  "xgboost",   "XGBClassifier",  {"n_estimators": 100, "random_state": 42, "verbosity": 0, "eval_metric": "logloss"}, False),
         ("lightgbm", "lightgbm",  "LGBMClassifier",  {"n_estimators": 100, "random_state": 42, "verbose": -1}, False),
     ],
     "random_forest": [
-        ("xgboost", "xgboost", "XGBRFClassifier", {"n_estimators": 100, "random_state": 42, "verbosity": 0, "eval_metric": "logloss", "nthread": 1}, False),
+        ("xgboost", "xgboost", "XGBRFClassifier", {"n_estimators": 100, "random_state": 42, "verbosity": 0, "eval_metric": "logloss"}, False),
     ],
 }
 
@@ -427,8 +427,7 @@ def tier1_algo_grid(datasets: list[dict], json_only: bool = False) -> dict:
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
                         ml.fit(data=_s.train, target=_t, algorithm=_a,
-                               seed=42, early_stopping=False,
-                               _skip_cv_score=True)  # don't double-fit for cv_score
+                               seed=42, early_stopping=False)
 
                 timing = run_timed(_ml_fit, warmup=2, runs=5)
                 with warnings.catch_warnings():
