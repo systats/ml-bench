@@ -1642,8 +1642,11 @@ def run_all(
 
     all_datasets = datasets + mc_datasets
 
-    # Tier 1: RF + Logistic wrapper overhead (binary only, existing behaviour)
-    results["tier1_overhead"] = tier1_overhead(datasets, json_only)
+    # Tier 1: RF + Logistic wrapper overhead — only core datasets (churn/fraud/spam).
+    # Extra binary datasets are large and make tier1_overhead run for hours.
+    _overhead_names = {"churn_7k", "fraud_10k", "spam_4k"}
+    _overhead_ds = [d for d in datasets if d["name"] in _overhead_names] or datasets[:1]
+    results["tier1_overhead"] = tier1_overhead(_overhead_ds, json_only)
 
     # Tier 1b: Full algorithm grid — binary + multi-class
     results["tier1_algo_grid"] = tier1_algo_grid(
