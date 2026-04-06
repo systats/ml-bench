@@ -22,10 +22,14 @@ import contextlib
 import gc
 import json
 import os
+import platform
+import sqlite3
 import subprocess
 import sys
 import warnings
+from collections import defaultdict
 from datetime import datetime, timezone
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -35,6 +39,151 @@ sys.path.insert(0, os.path.dirname(__file__))
 from _bench_utils import capture_versions, print_table, run_timed  # noqa: E402
 
 import ml  # noqa: E402
+
+# LightGBM fitted with feature names warns when predicting on numpy arrays.
+# This is cosmetic — predictions are correct. Suppress globally for this script.
+warnings.filterwarnings(
+    "ignore",
+    message="X does not have valid feature names",
+    category=UserWarning,
+)
+
+# ---------------------------------------------------------------------------
+# Persistent store — SQLite backing (store runs, not full experiments)
+# ---------------------------------------------------------------------------
+
+_DB_PATH = Path(__file__).parent / "bench_fair.db"
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS bench_runs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    suite       TEXT    NOT NULL DEFAULT 'fair',
+    dataset     TEXT    NOT NULL,
+    n_classes   INTEGER NOT NULL,
+    auc_type    TEXT    NOT NULL,
+    algo        TEXT    NOT NULL,
+    display     TEXT    NOT NULL,
+    framework   TEXT    NOT NULL,
+    seed        INTEGER NOT NULL,
+    roc_auc     REAL,
+    accuracy    REAL,
+    median_seconds REAL,
+    error       TEXT,
+    mlw_version TEXT,
+    hostname    TEXT,
+    ts          TEXT    DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_bench_run
+    ON bench_runs(suite, dataset, algo, framework, seed);
+CREATE INDEX IF NOT EXISTS idx_bench_ds
+    ON bench_runs(dataset, algo, framework);
+"""
+
+
+def _init_db(db_path: Path | None = None) -> sqlite3.Connection:
+    conn = sqlite3.connect(str(db_path or _DB_PATH))
+    conn.row_factory = sqlite3.Row
+    conn.executescript(_SCHEMA)
+    return conn
+
+
+def _save_run(
+    conn: sqlite3.Connection,
+    suite: str,
+    dataset: str,
+    n_classes: int,
+    auc_type: str,
+    algo: str,
+    display: str,
+    framework: str,
+    seed: int,
+    roc_auc: float | None,
+    accuracy: float | None,
+    median_seconds: float | None,
+    error: str | None = None,
+) -> None:
+    """INSERT OR IGNORE — silently skips if (suite, dataset, algo, framework, seed) exists."""
+    conn.execute(
+        """INSERT OR IGNORE INTO bench_runs
+           (suite, dataset, n_classes, auc_type, algo, display, framework, seed,
+            roc_auc, accuracy, median_seconds, error, mlw_version, hostname)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            suite, dataset, n_classes, auc_type, algo, display, framework, seed,
+            roc_auc, accuracy, median_seconds, error,
+            getattr(ml, "__version__", "?"), platform.node(),
+        ),
+    )
+    conn.commit()
+
+
+def _done_runs(conn: sqlite3.Connection, suite: str) -> set[tuple]:
+    """Return (dataset, algo, framework, seed) tuples already stored."""
+    rows = conn.execute(
+        "SELECT DISTINCT dataset, algo, framework, seed FROM bench_runs WHERE suite=?",
+        (suite,),
+    ).fetchall()
+    return {(r["dataset"], r["algo"], r["framework"], r["seed"]) for r in rows}
+
+
+def export_grid_from_db(conn: sqlite3.Connection, suite: str = "fair") -> dict:
+    """Reconstruct tier1_algo_grid structure from DB. Used for CDN JSON export."""
+    rows = conn.execute(
+        """SELECT dataset, algo, display, framework, n_classes, auc_type,
+                  roc_auc, accuracy, median_seconds, error
+           FROM bench_runs WHERE suite=?
+           ORDER BY dataset, algo, framework, seed""",
+        (suite,),
+    ).fetchall()
+
+    # Group by (dataset, algo, framework)
+    cells: dict[tuple, list] = defaultdict(list)
+    meta: dict[tuple, dict] = {}
+    for r in rows:
+        key = (r["dataset"], r["algo"], r["framework"])
+        cells[key].append(dict(r))
+        meta[key] = {"display": r["display"], "n_classes": r["n_classes"], "auc_type": r["auc_type"]}
+
+    # Aggregate seeds → median/p25/p75
+    algo_lookup = {a[0]: {"display": a[1], "rust": a[2]} for a in ALGO_GRID}
+    ds_algo_fw: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(dict))
+    for (dataset, algo, framework), seed_rows in cells.items():
+        aucs = [r["roc_auc"] for r in seed_rows if r["roc_auc"] is not None]
+        times = [r["median_seconds"] for r in seed_rows if r["median_seconds"] is not None]
+        errs = [r["error"] for r in seed_rows if r["error"]]
+        fw_data: dict = {}
+        if errs:
+            fw_data["error"] = errs[0]
+        elif aucs:
+            fw_data["roc_auc"] = round(float(np.median(aucs)), 4)
+            if len(aucs) > 1:
+                fw_data["roc_auc_p25"] = round(float(np.percentile(aucs, 25)), 4)
+                fw_data["roc_auc_p75"] = round(float(np.percentile(aucs, 75)), 4)
+            fw_data["n_runs"] = len(aucs)
+        if times:
+            fw_data["median_seconds"] = round(float(np.median(times)), 5)
+        accs = [r["accuracy"] for r in seed_rows if r["accuracy"] is not None]
+        if accs:
+            fw_data["accuracy"] = round(float(np.mean(accs)), 4)
+        ds_algo_fw[dataset][algo][framework] = fw_data
+        ds_algo_fw[dataset][algo].setdefault("_meta", meta[(dataset, algo, framework)])
+
+    # Convert to list-of-dicts (tier1_algo_grid format)
+    tier1: dict[str, list] = {}
+    for dataset, algos in ds_algo_fw.items():
+        ds_rows = []
+        for algo, fw_map in algos.items():
+            m = fw_map.pop("_meta", {})
+            am = algo_lookup.get(algo, {"display": algo, "rust": False})
+            row: dict = {
+                "algo": algo, "display": am["display"], "rust": am["rust"],
+                "n_classes": m.get("n_classes", 2), "auc_type": m.get("auc_type", "binary"),
+            }
+            row.update(fw_map)
+            ds_rows.append(row)
+        tier1[dataset] = ds_rows
+    return tier1
+
 
 # ── Tier 1: Wrapper Overhead ─────────────────────────────────────────────
 
@@ -315,15 +464,23 @@ ALGO_GRID = [
 
 # Extra frameworks per algo: algo_key → [(fw_key, module, class, kwargs, needs_scale)]
 # Only algorithms where the framework has a real equivalent.
+_XGB_CLS  = ("xgboost",  "xgboost",  "XGBClassifier",   {"n_estimators": 100, "random_state": 42, "verbosity": 0, "nthread": 1}, False)
+_LGBM_CLS = ("lightgbm", "lightgbm", "LGBMClassifier",  {"n_estimators": 100, "random_state": 42, "verbose": -1, "n_jobs": 1}, False)
+_XGB_RF   = ("xgboost",  "xgboost",  "XGBRFClassifier", {"n_estimators": 100, "random_state": 42, "verbosity": 0, "nthread": 1}, False)
+
 EXTRA_FW_GRID: dict[str, list[tuple]] = {
-    "gradient_boosting": [
-        ("xgboost",  "xgboost",   "XGBClassifier",  {"n_estimators": 100, "random_state": 42, "verbosity": 0, "eval_metric": "logloss"}, False),
-        ("lightgbm", "lightgbm",  "LGBMClassifier",  {"n_estimators": 100, "random_state": 42, "verbose": -1}, False),
-    ],
-    "random_forest": [
-        ("xgboost", "xgboost", "XGBRFClassifier", {"n_estimators": 100, "random_state": 42, "verbosity": 0, "eval_metric": "logloss"}, False),
-    ],
+    # GBT: XGBoost and LightGBM are fair comparisons (same algorithm family)
+    "gradient_boosting": [_XGB_CLS, _LGBM_CLS],
+    # RF/ET/DT: LightGBM only — XGBRFClassifier uses a different algorithm
+    # (single boosting round per tree, not a true RF) and is not a fair comparison
+    "random_forest":     [_LGBM_CLS],
+    "extra_trees":       [_LGBM_CLS],
+    "adaboost":          [_XGB_CLS, _LGBM_CLS],
+    "decision_tree":     [_XGB_CLS],
 }
+
+# Seeds for multi-seed AUC (timing always uses seed=42 for stability)
+BENCH_SEEDS = [42, 7, 123]
 
 
 def _sklearn_generic_pipeline(train_df, valid_df, target, make_estimator, needs_scale=False):
@@ -364,16 +521,20 @@ def _sklearn_generic_pipeline(train_df, valid_df, target, make_estimator, needs_
     y_pred = clf.predict(X_valid)
     acc = float(accuracy_score(y_valid, y_pred))
 
-    # AUC: prefer predict_proba, fall back to decision_function
+    # AUC: binary or multi-class (OvR macro)
+    n_classes = len(np.unique(y_valid))
     auc = None
     try:
         proba = clf.predict_proba(X_valid)
-        if hasattr(clf, "classes_"):
-            pos_candidates = np.where(clf.classes_ == 1)[0]
-            pos_idx = int(pos_candidates[0]) if len(pos_candidates) > 0 else 1
+        if n_classes == 2:
+            if hasattr(clf, "classes_"):
+                pos_candidates = np.where(clf.classes_ == 1)[0]
+                pos_idx = int(pos_candidates[0]) if len(pos_candidates) > 0 else 1
+            else:
+                pos_idx = 1
+            auc = float(roc_auc_score(y_valid, proba[:, pos_idx]))
         else:
-            pos_idx = 1
-        auc = float(roc_auc_score(y_valid, proba[:, pos_idx]))
+            auc = float(roc_auc_score(y_valid, proba, multi_class="ovr", average="macro"))
     except (AttributeError, Exception):
         try:
             scores = clf.decision_function(X_valid)
@@ -389,21 +550,64 @@ def _sklearn_generic_pipeline(train_df, valid_df, target, make_estimator, needs_
     }
 
 
-def tier1_algo_grid(datasets: list[dict], json_only: bool = False) -> dict:
-    """Tier 1b: All classifiers — ml vs sklearn, same data, same split."""
+def _multi_seed_auc(fit_fn, eval_fn, seeds: list[int]) -> dict:
+    """Run fit+eval across multiple seeds, return median/p25/p75 AUC."""
+    aucs = []
+    for seed in seeds:
+        try:
+            model = fit_fn(seed)
+            metrics = eval_fn(model)
+            auc = metrics.get("roc_auc")
+            if auc is not None:
+                aucs.append(float(auc))
+        except Exception:
+            pass
+    if not aucs:
+        return {}
+    return {
+        "roc_auc":     round(float(np.median(aucs)), 4),
+        "roc_auc_p25": round(float(np.percentile(aucs, 25)), 4),
+        "roc_auc_p75": round(float(np.percentile(aucs, 75)), 4),
+        "n_runs":      len(aucs),
+    }
+
+
+def tier1_algo_grid(
+    datasets: list[dict],
+    seeds: list[int] | None = None,
+    conn: sqlite3.Connection | None = None,
+    suite: str = "fair",
+    json_only: bool = False,
+) -> dict:
+    """Tier 1b: All classifiers — ml vs sklearn (+ XGBoost/LightGBM where applicable).
+
+    Multi-seed AUC: each algorithm is fit on len(seeds) independent splits.
+    Timing: single run (seed=42) for stability — run_timed warmup=2, runs=5.
+    FLAML: not here — belongs in tier3_automl only.
+    Persistence: if conn provided, saves each (dataset, algo, framework, seed) result
+    immediately — crash-safe. Skips already-stored seeds on restart.
+    """
     import importlib
+
+    if seeds is None:
+        seeds = BENCH_SEEDS
+
+    done: set[tuple] = _done_runs(conn, suite) if conn else set()
 
     results = {}
 
     for ds in datasets:
-        name = ds["name"]
-        data = ds["data"]
+        name   = ds["name"]
+        data   = ds["data"]
         target = ds["target"]
         n_rows = len(data)
+        n_classes = int(data[target].nunique())
+        auc_type  = "binary" if n_classes == 2 else "macro_ovr"
 
         if not json_only:
-            print(f"\n  Algo grid: {name} ({n_rows:,} rows)")
+            print(f"\n  Algo grid: {name} ({n_rows:,} rows, {n_classes} classes)")
 
+        # Timing split: seed=42 always (stable reference)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             s = ml.split(data=data, target=target, seed=42)
@@ -411,35 +615,87 @@ def tier1_algo_grid(datasets: list[dict], json_only: bool = False) -> dict:
         ds_results = []
 
         for (ml_algo, display, rust, sk_mod, sk_cls, sk_kwargs, needs_scale) in ALGO_GRID:
-            # Skip KNN on very large datasets (O(n) prediction, unusably slow)
             if ml_algo == "knn" and n_rows > 20_000:
                 ds_results.append({
                     "algo": ml_algo, "display": display, "rust": rust,
-                    "ml": None, "sklearn": None, "note": f"skipped: n={n_rows:,}>20k",
+                    "n_classes": n_classes, "auc_type": auc_type,
+                    "ml": None, "sklearn": None,
+                    "note": f"skipped: n={n_rows:,}>20k",
                 })
                 continue
 
-            row: dict = {"algo": ml_algo, "display": display, "rust": rust}
+            row: dict = {
+                "algo": ml_algo, "display": display, "rust": rust,
+                "n_classes": n_classes, "auc_type": auc_type,
+            }
 
-            # ── ml ──
+            # ── ml: timing (seed=42) + multi-seed AUC ──
             try:
-                def _ml_fit(_s=s, _t=target, _a=ml_algo):
+                def _ml_fit_timed(_s=s, _t=target, _a=ml_algo):
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
                         ml.fit(data=_s.train, target=_t, algorithm=_a,
                                seed=42, early_stopping=False)
 
-                timing = run_timed(_ml_fit, warmup=2, runs=5)
+                timing = run_timed(_ml_fit_timed, warmup=2, runs=5)
+
+                aucs_ml = []
+                for seed in seeds:
+                    if (name, ml_algo, "ml", seed) in done:
+                        # Already stored — recover from DB to include in aggregation
+                        _rows = conn.execute(  # type: ignore[union-attr]
+                            "SELECT roc_auc FROM bench_runs"
+                            " WHERE suite=? AND dataset=? AND algo=? AND framework=? AND seed=?",
+                            (suite, name, ml_algo, "ml", seed),
+                        ).fetchone()
+                        if _rows and _rows[0] is not None:
+                            aucs_ml.append(float(_rows[0]))
+                        continue
+                    _auc = None
+                    _err = None
+                    try:
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            _s_seed = ml.split(data=data, target=target, seed=seed)
+                            _m = ml.fit(data=_s_seed.train, target=target,
+                                        algorithm=ml_algo, seed=seed, early_stopping=False)
+                            if n_classes == 2:
+                                _met = ml.evaluate(_m, _s_seed.valid)
+                                _auc = _met.get("roc_auc")
+                            else:
+                                from sklearn.metrics import roc_auc_score
+                                from sklearn.preprocessing import LabelEncoder
+                                _proba = ml.predict_proba(_m, _s_seed.valid)
+                                _le = LabelEncoder().fit(_s_seed.train[target])
+                                _y = _le.transform(_s_seed.valid[target])
+                                _auc = float(roc_auc_score(
+                                    _y, _proba.values, multi_class="ovr", average="macro"
+                                ))
+                    except Exception as _e:
+                        _err = str(_e)[:200]
+                    if conn:
+                        # Store timing only on seed=42 row (reference run)
+                        _t = timing["median_seconds"] if seed == 42 else None
+                        _save_run(conn, suite, name, n_classes, auc_type,
+                                  ml_algo, display, "ml", seed, _auc, None, _t, _err)
+                        done.add((name, ml_algo, "ml", seed))
+                    if _auc is not None:
+                        aucs_ml.append(float(_auc))
+
+                # accuracy from seed=42 model
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    model = ml.fit(data=s.train, target=target, algorithm=ml_algo,
-                                   seed=42, early_stopping=False)
-                metrics = ml.evaluate(model, s.valid)
+                    model42 = ml.fit(data=s.train, target=target, algorithm=ml_algo,
+                                     seed=42, early_stopping=False)
+                    metrics42 = ml.evaluate(model42, s.valid)
 
                 row["ml"] = {
                     "median_seconds": timing["median_seconds"],
-                    "accuracy": round(metrics.get("accuracy", 0) or 0, 4),
-                    "roc_auc": round(metrics.get("roc_auc") or 0, 4) if metrics.get("roc_auc") else None,
+                    "accuracy": round(metrics42.get("accuracy", 0) or 0, 4),
+                    "roc_auc":     round(float(np.median(aucs_ml)), 4) if aucs_ml else None,
+                    "roc_auc_p25": round(float(np.percentile(aucs_ml, 25)), 4) if len(aucs_ml) > 1 else None,
+                    "roc_auc_p75": round(float(np.percentile(aucs_ml, 75)), 4) if len(aucs_ml) > 1 else None,
+                    "n_runs": len(aucs_ml),
                 }
                 if not json_only:
                     t = timing["median_seconds"]
@@ -450,28 +706,61 @@ def tier1_algo_grid(datasets: list[dict], json_only: bool = False) -> dict:
                 if not json_only:
                     print(f"  [{ml_algo:20s}] ml ERROR: {e}", end="")
 
-            # ── sklearn ──
+            # ── sklearn: timing (seed=42) + multi-seed AUC ──
             try:
                 mod = importlib.import_module(sk_mod)
                 cls = getattr(mod, sk_cls)
+
                 def make_est(_cls=cls, _kw=sk_kwargs):
                     return _cls(**_kw)
 
-                def _sk_fit(_s=s, _t=target, _me=make_est, _ns=needs_scale):
+                def _sk_fit_timed(_s=s, _t=target, _me=make_est, _ns=needs_scale):
                     _sklearn_generic_pipeline(_s.train, _s.valid, _t, _me, _ns)
 
-                sk_timing = run_timed(_sk_fit, warmup=2, runs=5)
-                sk_metrics = _sklearn_generic_pipeline(s.train, s.valid, target, make_est, needs_scale)
+                sk_timing = run_timed(_sk_fit_timed, warmup=2, runs=5)
+
+                aucs_sk = []
+                for seed in seeds:
+                    if (name, ml_algo, "sklearn", seed) in done:
+                        _rows = conn.execute(  # type: ignore[union-attr]
+                            "SELECT roc_auc FROM bench_runs"
+                            " WHERE suite=? AND dataset=? AND algo=? AND framework=? AND seed=?",
+                            (suite, name, ml_algo, "sklearn", seed),
+                        ).fetchone()
+                        if _rows and _rows[0] is not None:
+                            aucs_sk.append(float(_rows[0]))
+                        continue
+                    _auc_sk = None
+                    _err_sk = None
+                    try:
+                        _s_seed = ml.split(data=data, target=target, seed=seed)
+                        _sk_met = _sklearn_generic_pipeline(
+                            _s_seed.train, _s_seed.valid, target, make_est, needs_scale
+                        )
+                        _auc_sk = _sk_met.get("roc_auc")
+                    except Exception as _e:
+                        _err_sk = str(_e)[:200]
+                    if conn:
+                        _t_sk = sk_timing["median_seconds"] if seed == 42 else None
+                        _save_run(conn, suite, name, n_classes, auc_type,
+                                  ml_algo, display, "sklearn", seed, _auc_sk, None, _t_sk, _err_sk)
+                        done.add((name, ml_algo, "sklearn", seed))
+                    if _auc_sk is not None:
+                        aucs_sk.append(float(_auc_sk))
+
+                sk_metrics42 = _sklearn_generic_pipeline(s.train, s.valid, target, make_est, needs_scale)
 
                 row["sklearn"] = {
                     "median_seconds": sk_timing["median_seconds"],
-                    "accuracy": sk_metrics["accuracy"],
-                    "roc_auc": sk_metrics["roc_auc"],
+                    "accuracy": sk_metrics42["accuracy"],
+                    "roc_auc":     round(float(np.median(aucs_sk)), 4) if aucs_sk else None,
+                    "roc_auc_p25": round(float(np.percentile(aucs_sk, 25)), 4) if len(aucs_sk) > 1 else None,
+                    "roc_auc_p75": round(float(np.percentile(aucs_sk, 75)), 4) if len(aucs_sk) > 1 else None,
+                    "n_runs": len(aucs_sk),
                 }
 
-                # Speedup: positive = ml faster
                 ml_t = (row.get("ml") or {}).get("median_seconds")
-                sk_t = sk_timing["median_seconds"]
+                sk_t  = sk_timing["median_seconds"]
                 if ml_t and sk_t and sk_t > 0:
                     row["speedup_x"] = round(sk_t / ml_t, 2)
 
@@ -484,25 +773,61 @@ def tier1_algo_grid(datasets: list[dict], json_only: bool = False) -> dict:
                 if not json_only:
                     print(f"  sklearn ERROR: {e}")
 
-            # ── extra frameworks (xgboost, lightgbm, …) ──
+            # ── extra frameworks (xgboost, lightgbm …) ──
             for (fw_key, fw_mod, fw_cls, fw_kwargs, fw_scale) in EXTRA_FW_GRID.get(ml_algo, []):
                 try:
-                    mod = importlib.import_module(fw_mod)
-                    cls = getattr(mod, fw_cls)
-                    def make_extra(_cls=cls, _kw=fw_kwargs):
+                    fw_mod_obj = importlib.import_module(fw_mod)
+                    fw_cls_obj = getattr(fw_mod_obj, fw_cls)
+
+                    def make_extra(_cls=fw_cls_obj, _kw=fw_kwargs):
                         return _cls(**_kw)
-                    def _fw_fit(_s=s, _t=target, _me=make_extra, _ns=fw_scale):
+
+                    def _fw_fit_timed(_s=s, _t=target, _me=make_extra, _ns=fw_scale):
                         _sklearn_generic_pipeline(_s.train, _s.valid, _t, _me, _ns)
-                    fw_timing = run_timed(_fw_fit, warmup=2, runs=5)
-                    fw_metrics = _sklearn_generic_pipeline(s.train, s.valid, target, make_extra, fw_scale)
+
+                    fw_timing = run_timed(_fw_fit_timed, warmup=2, runs=5)
+
+                    aucs_fw = []
+                    for seed in seeds:
+                        if (name, ml_algo, fw_key, seed) in done:
+                            _rows = conn.execute(  # type: ignore[union-attr]
+                                "SELECT roc_auc FROM bench_runs"
+                                " WHERE suite=? AND dataset=? AND algo=? AND framework=? AND seed=?",
+                                (suite, name, ml_algo, fw_key, seed),
+                            ).fetchone()
+                            if _rows and _rows[0] is not None:
+                                aucs_fw.append(float(_rows[0]))
+                            continue
+                        _auc_fw = None
+                        _err_fw = None
+                        try:
+                            _s_seed = ml.split(data=data, target=target, seed=seed)
+                            _fw_met = _sklearn_generic_pipeline(
+                                _s_seed.train, _s_seed.valid, target, make_extra, fw_scale
+                            )
+                            _auc_fw = _fw_met.get("roc_auc")
+                        except Exception as _e:
+                            _err_fw = str(_e)[:200]
+                        if conn:
+                            _t_fw = fw_timing["median_seconds"] if seed == 42 else None
+                            _save_run(conn, suite, name, n_classes, auc_type,
+                                      ml_algo, display, fw_key, seed, _auc_fw, None, _t_fw, _err_fw)
+                            done.add((name, ml_algo, fw_key, seed))
+                        if _auc_fw is not None:
+                            aucs_fw.append(float(_auc_fw))
+
+                    fw_metrics42 = _sklearn_generic_pipeline(s.train, s.valid, target, make_extra, fw_scale)
                     row[fw_key] = {
                         "median_seconds": fw_timing["median_seconds"],
-                        "accuracy": fw_metrics["accuracy"],
-                        "roc_auc": fw_metrics["roc_auc"],
+                        "accuracy": fw_metrics42["accuracy"],
+                        "roc_auc":     round(float(np.median(aucs_fw)), 4) if aucs_fw else None,
+                        "roc_auc_p25": round(float(np.percentile(aucs_fw, 25)), 4) if len(aucs_fw) > 1 else None,
+                        "roc_auc_p75": round(float(np.percentile(aucs_fw, 75)), 4) if len(aucs_fw) > 1 else None,
+                        "n_runs": len(aucs_fw),
                     }
                     if not json_only:
                         t_ms = fw_timing["median_seconds"] * 1000
-                        print(f"  {fw_key} {t_ms:6.0f}ms  AUC={fw_metrics['roc_auc']}", end="")
+                        print(f"  {fw_key:10s} {t_ms:6.0f}ms  AUC={row[fw_key]['roc_auc']}", end="")
                 except Exception as e:
                     row[fw_key] = {"error": str(e)[:120]}
                     if not json_only:
@@ -510,62 +835,99 @@ def tier1_algo_grid(datasets: list[dict], json_only: bool = False) -> dict:
 
             ds_results.append(row)
 
-        # ── FLAML AutoML row (one per dataset, best model in 30s) ──
-        try:
-            from flaml import AutoML as _AutoML
-            from sklearn.impute import SimpleImputer
-            from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
-
-            le = LabelEncoder()
-            X_tr = s.train.drop(columns=[target]).copy()
-            X_v  = s.valid.drop(columns=[target]).copy()
-            y_tr = le.fit_transform(s.train[target])
-            y_v  = le.transform(s.valid[target])
-
-            cats = X_tr.select_dtypes(include=["object", "category"]).columns.tolist()
-            if cats:
-                enc = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
-                X_tr[cats] = enc.fit_transform(X_tr[cats])
-                X_v[cats]  = enc.transform(X_v[cats])
-            X_tr = SimpleImputer(strategy="median").fit_transform(X_tr.values.astype(float))
-            X_v  = SimpleImputer(strategy="median").fit_transform(X_v.astype(float))
-
-            import time as _time
-            t0 = _time.perf_counter()
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                automl = _AutoML()
-                automl.fit(X_tr, y_tr, task="classification", time_budget=15, verbose=0, seed=42)
-            elapsed = _time.perf_counter() - t0
-
-            from sklearn.metrics import roc_auc_score
-            proba = automl.predict_proba(X_v)
-            pos_idx = 1 if proba.shape[1] > 1 else 0
-            auc = float(roc_auc_score(y_v, proba[:, pos_idx]))
-            best_algo = getattr(automl, "best_estimator", "?")
-
-            ds_results.append({
-                "algo": "flaml_auto", "display": "FLAML AutoML",
-                "rust": False, "note": f"best: {best_algo}",
-                "flaml": {
-                    "median_seconds": round(elapsed, 3),
-                    "accuracy": None,
-                    "roc_auc": round(auc, 4),
-                },
-            })
-            if not json_only:
-                print(f"\n  [{'flaml_auto':20s}] flaml {elapsed*1000:6.0f}ms  AUC={auc:.4f}  best={best_algo}")
-        except Exception as e:
-            ds_results.append({
-                "algo": "flaml_auto", "display": "FLAML AutoML",
-                "rust": False, "flaml": {"error": str(e)[:120]},
-            })
-            if not json_only:
-                print(f"\n  [flaml_auto] FLAML ERROR: {e}")
-
         results[name] = ds_results
 
     return results
+
+
+def compute_statistics(algo_grid: dict, competitor: str = "sklearn") -> dict:
+    """Per-algorithm win rate, effect size (Cohen's d), geo-mean speedup vs competitor.
+
+    Returns a dict keyed by algo, suitable for the top-level 'statistics' JSON field.
+    """
+    from math import exp, log
+
+    algo_stats: dict[str, dict] = {}
+
+    for ds_rows in algo_grid.values():
+        for row in ds_rows:
+            algo = row.get("algo")
+            if not algo:
+                continue
+            ml_data  = row.get("ml") or {}
+            cmp_data = row.get(competitor) or {}
+            ml_auc   = ml_data.get("roc_auc")
+            cmp_auc  = cmp_data.get("roc_auc")
+            ml_t     = ml_data.get("median_seconds")
+            cmp_t    = cmp_data.get("median_seconds")
+            if ml_auc is None or cmp_auc is None:
+                continue
+            if algo not in algo_stats:
+                algo_stats[algo] = {
+                    "display": row.get("display", algo),
+                    "auc_pairs": [],
+                    "log_speedups": [],
+                    "wins": 0, "losses": 0, "ties": 0,
+                }
+            s = algo_stats[algo]
+            s["auc_pairs"].append((float(ml_auc), float(cmp_auc)))
+            if ml_t and cmp_t and ml_t > 0:
+                s["log_speedups"].append(log(cmp_t / ml_t))
+            delta = float(ml_auc) - float(cmp_auc)
+            if delta > 0.001:
+                s["wins"] += 1
+            elif delta < -0.001:
+                s["losses"] += 1
+            else:
+                s["ties"] += 1
+
+    statistics = {}
+    for algo, s in algo_stats.items():
+        n = s["wins"] + s["losses"] + s["ties"]
+        if n == 0:
+            continue
+        pairs = s["auc_pairs"]
+        diffs = [a - b for a, b in pairs]
+        mean_d = float(np.mean(diffs)) if diffs else 0.0
+        std_d  = float(np.std(diffs, ddof=1)) if len(diffs) > 1 else 0.0
+        cohens_d = round(mean_d / std_d, 3) if std_d > 0.0001 else 0.0
+        geo_speedup = None
+        if s["log_speedups"]:
+            geo_speedup = round(exp(float(np.mean(s["log_speedups"]))), 2)
+        win_rate = round(s["wins"] / n, 3)
+        # Verdict
+        if win_rate >= 0.70 and abs(cohens_d) >= 0.10:
+            auc_verdict = "win"
+        elif win_rate <= 0.35:
+            auc_verdict = "loss"
+        else:
+            auc_verdict = "comparable"
+        spd_verdict = None
+        if geo_speedup is not None:
+            if geo_speedup >= 3.0:
+                spd_verdict = "significantly_faster"
+            elif geo_speedup >= 1.2:
+                spd_verdict = "faster"
+            elif geo_speedup >= 0.8:
+                spd_verdict = "comparable"
+            else:
+                spd_verdict = "slower"
+        statistics[algo] = {
+            "display": s["display"],
+            f"vs_{competitor}": {
+                "win_rate":       win_rate,
+                "wins":           s["wins"],
+                "losses":         s["losses"],
+                "ties":           s["ties"],
+                "n_datasets":     n,
+                "effect_size_d":  cohens_d,
+                "geo_mean_speedup": geo_speedup,
+                "auc_verdict":    auc_verdict,
+                "speed_verdict":  spd_verdict,
+            },
+        }
+
+    return statistics
 
 
 # ── Tier 2: Screener vs Screener ─────────────────────────────────────────
@@ -981,15 +1343,115 @@ def tier4_messy_data(json_only: bool = False) -> dict:
 # ── Main ─────────────────────────────────────────────────────────────────
 
 
+def _run_r_frameworks(datasets: list[dict], json_only: bool = False) -> dict:
+    """Run R framework benchmarks via subprocess (tidymodels, ml R, caret).
+
+    Requires:  Rscript in PATH, R packages: tidymodels, ranger, ml, caret, jsonlite.
+    Protocol:  writes data to temp CSVs, R writes JSON to temp file (never stdout).
+    """
+    import os
+    import subprocess
+    import tempfile
+
+    _R_SCRIPTS = {
+        "tidymodels": os.path.join(os.path.dirname(__file__), "r", "tidymodels_rf.R"),
+        "ml_r":       os.path.join(os.path.dirname(__file__), "r", "ml_r_rf.R"),
+        "caret":      os.path.join(os.path.dirname(__file__), "r", "caret_rf.R"),
+    }
+
+    def _r_pipeline(train_df, valid_df, target: str, r_script: str, timeout: int = 120) -> dict:
+        tmp_files = []
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w") as f:
+                train_df.to_csv(f, index=False)
+                tmp_files.append(f.name)
+            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w") as f:
+                valid_df.to_csv(f, index=False)
+                tmp_files.append(f.name)
+            with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+                out_path = f.name
+                tmp_files.append(out_path)
+
+            proc = subprocess.run(
+                ["Rscript", "--quiet", r_script,
+                 tmp_files[0], tmp_files[1], target, out_path],
+                capture_output=True, text=True, timeout=timeout,
+            )
+            if proc.returncode != 0:
+                return {"error": f"R exit {proc.returncode}: {proc.stderr[:300].strip()}"}
+            with open(out_path) as f:
+                return json.load(f)
+        except subprocess.TimeoutExpired:
+            return {"error": "R timeout"}
+        except Exception as e:
+            return {"error": str(e)[:200]}
+        finally:
+            for p in tmp_files:
+                with contextlib.suppress(OSError):
+                    os.unlink(p)
+
+    results: dict = {}
+    for ds in datasets:
+        name   = ds["name"]
+        data   = ds["data"]
+        target = ds["target"]
+        n_classes = int(data[target].nunique())
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            s = ml.split(data=data, target=target, seed=42)
+
+        ds_rows = []
+        for fw_key, r_script in _R_SCRIPTS.items():
+            if not os.path.exists(r_script):
+                if not json_only:
+                    print(f"  [skip R] {fw_key}: script not found at {r_script}")
+                continue
+            try:
+                result = _r_pipeline(s.train, s.valid, target, r_script)
+                row = {
+                    "algo": f"rf_{fw_key}",
+                    "display": f"Random Forest ({fw_key})",
+                    "rust": False,
+                    "n_classes": n_classes,
+                    "auc_type": "binary" if n_classes == 2 else "macro_ovr",
+                    fw_key: result,
+                }
+                ds_rows.append(row)
+                if not json_only:
+                    auc = result.get("roc_auc", "err")
+                    t_ms = (result.get("median_seconds") or 0) * 1000
+                    print(f"  [{fw_key:12s}] {t_ms:6.0f}ms  AUC={auc}")
+            except Exception as e:
+                ds_rows.append({
+                    "algo": f"rf_{fw_key}", "display": f"Random Forest ({fw_key})",
+                    fw_key: {"error": str(e)[:120]},
+                })
+        results[name] = ds_rows
+    return results
+
+
 def run_all(
     include_beast: bool = False,
     include_tier3: bool = False,
+    include_r: bool = False,
+    seeds: list[int] | None = None,
+    db_path: Path | None = None,
     json_only: bool = False,
 ) -> dict:
+    if seeds is None:
+        seeds = BENCH_SEEDS
+    conn = _init_db(db_path)
     versions = capture_versions()
     results = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "versions": versions,
+        "run_config": {
+            "seeds": seeds,
+            "warmup_runs": 2,
+            "timed_runs": 5,
+            "n_jobs": 1,
+        },
         "note": "CPU-only benchmark. n_jobs=1. early_stopping=False for fair comparison.",
     }
 
@@ -1002,8 +1464,7 @@ def run_all(
               f"pandas {v['pandas']} | numpy {v['numpy']}")
         print(f"  Python {v['python']} | {v['platform']} {v['machine']} | "
               f"{v['cpu_count']} CPUs | {v['ram_gb']} GB RAM")
-        print("  Warmup: 3 | Measured: 7 | Memory: RSS delta (psutil)")
-        print("  early_stopping=False | n_jobs=1")
+        print(f"  Seeds: {seeds} | Warmup: 2 | Measured: 5 | n_jobs=1")
         print("=" * 60)
 
     # Datasets — grows organically; each entry is independent try/except
@@ -1100,6 +1561,75 @@ def run_all(
         if not json_only:
             print(f"  [skip] phoneme: {e}")
 
+    # ── Extra binary datasets ─────────────────────────────────────────────
+    _extra_binary = [
+        ("heart",       "heart",       "target"),
+        ("ionosphere",  "ionosphere",  "target"),
+        ("sonar",       "sonar",       "target"),
+        ("banknote",    "banknote",    "target"),
+        ("credit_g",    "credit_g",    "target"),
+        ("madelon",     "madelon",     "target"),
+        ("higgs_10k",   "higgs_10k",   "target"),
+        ("covertype_binary_10k", "covertype_binary_10k", "target"),
+    ]
+    for ds_key, ds_name, ds_target in _extra_binary:
+        try:
+            df = ml.dataset(ds_key)
+            # Some datasets ship with a non-standard target column name.
+            # Normalize to the declared ds_target if possible; fall back to last column.
+            if ds_target not in df.columns:
+                ds_target = df.columns[-1]
+            datasets.append({"name": ds_name, "data": df, "target": ds_target})
+        except Exception as e:
+            if not json_only:
+                print(f"  [skip] {ds_key}: {e}")
+
+    # ── Multi-class datasets (sklearn bundled — always available) ─────────
+    mc_datasets: list[dict] = []
+
+    try:
+        from sklearn.datasets import load_digits, load_iris, load_wine
+
+        for loader, name in [(load_wine, "wine_3c"), (load_iris, "iris_3c")]:
+            bunch = loader()
+            df_mc = pd.DataFrame(bunch.data, columns=bunch.feature_names)
+            df_mc["target"] = bunch.target
+            mc_datasets.append({"name": name, "data": df_mc, "target": "target"})
+
+        digits_bunch = load_digits()
+        df_dig = pd.DataFrame(digits_bunch.data,
+                               columns=[f"pixel_{i}" for i in range(digits_bunch.data.shape[1])])
+        df_dig["target"] = digits_bunch.target
+        mc_datasets.append({"name": "digits_10c", "data": df_dig, "target": "target"})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] sklearn bundled multi-class: {e}")
+
+    _extra_mc = [
+        ("glass",   "glass_6c",   "target"),
+        ("vehicle", "vehicle_4c", "target"),
+    ]
+    for ds_key, ds_name, ds_target in _extra_mc:
+        try:
+            df = ml.dataset(ds_key)
+            if ds_target not in df.columns:
+                ds_target = df.columns[-1]
+            mc_datasets.append({"name": ds_name, "data": df, "target": ds_target})
+        except Exception as e:
+            if not json_only:
+                print(f"  [skip] {ds_key}: {e}")
+
+    # Subsample forest_cover to 5k rows (7 classes, 54 features)
+    try:
+        fc = ml.dataset("forest_cover")
+        if len(fc) > 5000:
+            fc = fc.sample(5000, random_state=42).reset_index(drop=True)
+        fc_target = "target" if "target" in fc.columns else fc.columns[-1]
+        mc_datasets.append({"name": "forest_5k_7c", "data": fc, "target": fc_target})
+    except Exception as e:
+        if not json_only:
+            print(f"  [skip] forest_cover: {e}")
+
     if include_beast:
         from sklearn.datasets import make_classification
         X, y = make_classification(
@@ -1110,18 +1640,25 @@ def run_all(
         df_100k["target"] = y
         datasets.append({"name": "synthetic_100k", "data": df_100k, "target": "target"})
 
-    # Tier 1: RF + Logistic wrapper overhead (existing)
+    all_datasets = datasets + mc_datasets
+
+    # Tier 1: RF + Logistic wrapper overhead (binary only, existing behaviour)
     results["tier1_overhead"] = tier1_overhead(datasets, json_only)
 
-    # Tier 1b: Full algorithm grid — all classifiers vs sklearn
-    results["tier1_algo_grid"] = tier1_algo_grid(datasets, json_only)
+    # Tier 1b: Full algorithm grid — binary + multi-class
+    results["tier1_algo_grid"] = tier1_algo_grid(
+        all_datasets, seeds=seeds, conn=conn, json_only=json_only
+    )
 
-    # Tier 2 (on first dataset)
+    # Statistics block — win rates, effect sizes, geo-mean speedup
+    results["statistics"] = compute_statistics(results["tier1_algo_grid"], competitor="sklearn")
+
+    # Tier 2 (on first binary dataset)
     results["tier2_screener"] = tier2_screener(
         datasets[0]["data"], datasets[0]["target"], json_only,
     )
 
-    # Tier 3 (optional)
+    # Tier 3 (optional — FLAML only here, not in algo grid)
     if include_tier3:
         results["tier3_automl"] = tier3_automl(
             datasets[0]["data"], datasets[0]["target"], json_only,
@@ -1130,6 +1667,10 @@ def run_all(
     # Tier 4 (always)
     results["tier4_messy_data"] = tier4_messy_data(json_only)
 
+    # R frameworks (optional — requires R + tidymodels/ml packages)
+    if include_r:
+        results["tier1_r"] = _run_r_frameworks(datasets[:3], json_only=json_only)
+
     # Cleanup
     gc.collect()
     return results
@@ -1137,17 +1678,43 @@ def run_all(
 
 def main():
     parser = argparse.ArgumentParser(description="ml fair benchmark")
-    parser.add_argument("--tier3", action="store_true", help="Include FLAML AutoML")
-    parser.add_argument("--beast", action="store_true", help="Include 100K synthetic")
+    parser.add_argument("--tier3", action="store_true", help="Include FLAML AutoML (Tier 3)")
+    parser.add_argument("--beast", action="store_true", help="Include 100K synthetic dataset")
+    parser.add_argument("--r-compat", action="store_true", dest="r_compat",
+                        help="Include R frameworks (requires Rscript + tidymodels/ml/caret)")
+    parser.add_argument("--seeds", type=int, nargs="+", default=None,
+                        metavar="S", help="Seeds for multi-seed AUC (default: 42 7 123)")
+    parser.add_argument("--db", type=str, default=None,
+                        metavar="PATH", help="SQLite DB path (default: bench_fair.db next to script)")
+    parser.add_argument("--export", action="store_true",
+                        help="Export JSON from existing DB without running benchmarks")
     parser.add_argument("--json", action="store_true", help="JSON output only")
     parser.add_argument("--output", type=str, help="Save JSON to file")
     args = parser.parse_args()
 
-    results = run_all(
-        include_beast=args.beast,
-        include_tier3=args.tier3,
-        json_only=args.json,
-    )
+    db_path = Path(args.db) if args.db else None
+    seeds = args.seeds if args.seeds else BENCH_SEEDS
+
+    if args.export:
+        # Reconstruct JSON from DB without running anything
+        conn = _init_db(db_path)
+        grid = export_grid_from_db(conn)
+        stats = compute_statistics(grid)
+        results = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "note": "Exported from DB — no new runs.",
+            "tier1_algo_grid": grid,
+            "statistics": stats,
+        }
+    else:
+        results = run_all(
+            include_beast=args.beast,
+            include_tier3=args.tier3,
+            include_r=args.r_compat,
+            seeds=seeds,
+            db_path=db_path,
+            json_only=args.json,
+        )
 
     if args.json or args.output:
         output = json.dumps(results, indent=2, default=str)
