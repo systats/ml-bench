@@ -1561,28 +1561,9 @@ def run_all(
         if not json_only:
             print(f"  [skip] phoneme: {e}")
 
-    # ── Extra binary datasets ─────────────────────────────────────────────
-    _extra_binary = [
-        ("heart",       "heart",       "target"),
-        ("ionosphere",  "ionosphere",  "target"),
-        ("sonar",       "sonar",       "target"),
-        ("banknote",    "banknote",    "target"),
-        ("credit_g",    "credit_g",    "target"),
-        ("madelon",     "madelon",     "target"),
-        ("higgs_10k",   "higgs_10k",   "target"),
-        ("covertype_binary_10k", "covertype_binary_10k", "target"),
-    ]
-    for ds_key, ds_name, ds_target in _extra_binary:
-        try:
-            df = ml.dataset(ds_key)
-            # Some datasets ship with a non-standard target column name.
-            # Normalize to the declared ds_target if possible; fall back to last column.
-            if ds_target not in df.columns:
-                ds_target = df.columns[-1]
-            datasets.append({"name": ds_name, "data": df, "target": ds_target})
-        except Exception as e:
-            if not json_only:
-                print(f"  [skip] {ds_key}: {e}")
+    # ── Extra binary datasets (excluded from default algo_grid run — too slow) ──
+    # These inflate tier1_algo_grid from ~11 to 20+ datasets, making it 2x slower.
+    # Pass --extra to include them in a dedicated run.
 
     # ── Multi-class datasets (sklearn bundled — always available) ─────────
     mc_datasets: list[dict] = []
